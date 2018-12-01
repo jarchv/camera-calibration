@@ -6,3 +6,6 @@ main: main.cpp
 
 read: read.cpp
 		${COMPILER} -std=c++11 read.cpp -o out `pkg-config --cflags --libs opencv`
+
+readimg: readimg.cpp
+		${COMPILER} -std=c++11 readimg.cpp -o out `pkg-config --cflags --libs opencv`

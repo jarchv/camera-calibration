@@ -10,6 +10,8 @@ int main(int, char**)
 
     Mat edges;
     namedWindow("edges",1);
+    
+    int k;
     for(;;)
     {
         Mat frame;
@@ -17,8 +19,10 @@ int main(int, char**)
         cvtColor(frame, edges, COLOR_BGR2GRAY);
         GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
         Canny(edges, edges, 0, 30, 3);
-        imshow("edges", edges);
-        if(waitKey(30) >= 0) break;
+        imshow("edges", frame);
+
+        k = waitKey(1);
+        if(k == 27) break;
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
     return 0;
