@@ -16,7 +16,8 @@ Mat gray;
 Mat normImg;
 
 void   findCenters(int, int);
-void   transLineal(Mat, Mat&);
+void transCLAHE(Mat, Mat&);
+void  transLineal(Mat, Mat&);
 void getMeanValue(Mat,float&,float &);
 
 int main(int argc, char** argv)
@@ -37,6 +38,7 @@ int main(int argc, char** argv)
     Mat dst;
     Mat dst2;
     Mat imgT;
+    Mat imgT2;
     Mat frameLab2;
     float mean;
     float std;
@@ -48,9 +50,14 @@ int main(int argc, char** argv)
         if(frame.empty())
             break;
 
-        
+        //if CLAHE
         cv::cvtColor(frame, frameLab2, CV_BGR2Lab);
-        transLineal(frameLab2, imgT);
+        
+        transCLAHE(frameLab2, imgT2);
+        //imshow("clahe",imgT2);
+        
+        transLineal(imgT2,imgT);
+        //imshow("lineal",imgT);
         //cvtColor(imgT, gray, COLOR_BGR2GRAY);
         //Ptr<CLAHE> clahe = createCLAHE();
         //clahe->setClipLimit(4);
@@ -103,7 +110,7 @@ void findCenters(int thresh, int max_thresh)
     int counte = 0;
     for( int i = 0; i < contours.size(); i++ )
     {
-        if( contours[i].size() > 4  && contours[i].size() < 150)
+        if( contours[i].size() > 6  && contours[i].size() < 150)
         {
             minRect[counte]    = minAreaRect( Mat(contours[i]) );
             minEllipse[counte] = fitEllipse( Mat(contours[i]) );
@@ -155,7 +162,7 @@ void findCenters(int thresh, int max_thresh)
     imshow("foo", frame);
 }
 
-void transLineal(Mat inputImg,Mat& imgT)
+void transCLAHE(Mat inputImg,Mat& imgT)
 {
     //Mat ch1, ch2, ch3;
     //inputImg.convertTo(inputImg, CV_32FC1);
@@ -176,14 +183,14 @@ void transLineal(Mat inputImg,Mat& imgT)
         //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
         //channels[i] /= sum;
         //channels[i] *= 255;
-        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
-        clahe->setClipLimit(2.5);
-        cv::Mat dst;
-        clahe->apply(channels[0], dst);
-        dst.copyTo(channels[0]);
-        cv::merge(channels, lab_image);
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+    clahe->setClipLimit(3);
+    cv::Mat dst;
+    clahe->apply(channels[0], dst);
+    dst.copyTo(channels[0]);
+    cv::merge(channels, lab_image);
 
-        cv::cvtColor(lab_image, imgT, CV_Lab2BGR);
+    cv::cvtColor(lab_image, imgT, CV_Lab2BGR);
             //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
         //minMaxLoc(channels[i], &min, &max);
         //std::cout <<  max << std::endl;
@@ -192,6 +199,40 @@ void transLineal(Mat inputImg,Mat& imgT)
         //normalize(channels[i], channels[i], min, max, NORM_MINMAX);
     //}
     //merge(channels,3,imgT);
+    
+}
+
+void transLineal(Mat inputImg,Mat& imgT)
+{
+    //Mat ch1, ch2, ch3;
+    //inputImg.convertTo(inputImg, CV_32FC1);
+    Mat channels[3];
+    Mat sum;
+    Mat lab_image;
+    double min, max;
+    split(inputImg, channels);
+
+    sum = channels[0] + channels[1] + channels[2];
+    sum.convertTo(sum, CV_32FC1);
+    //minMaxLoc(sum, &min, &max);
+    //std::cout <<  max << std::endl;
+
+    //std::cout << "sum : " << sum.size() << std::endl;
+    for (int i = 0; i < 3; i++)
+    {
+        channels[i].convertTo(channels[i], CV_32FC1);
+        //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
+        channels[i] /= sum;
+        channels[i] *= 255;
+        channels[i].convertTo(channels[i], CV_8UC1);
+            //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
+        //minMaxLoc(channels[i], &min, &max);
+        //std::cout <<  max << std::endl;
+        //channels[i] = 255 * (channels[i] - min)/ (max - min);
+        
+        //normalize(channels[i], channels[i], min, max, NORM_MINMAX);
+    }
+    merge(channels,3,imgT);
     
 }
 
