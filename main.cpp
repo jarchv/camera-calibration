@@ -17,7 +17,7 @@ Mat normImg;
 
 void   findCenters(int, int);
 void   transLineal(Mat, Mat&);
-double getMeanValue(Mat );
+void getMeanValue(Mat,float&,float &);
 
 int main(int argc, char** argv)
 {
@@ -37,7 +37,10 @@ int main(int argc, char** argv)
     Mat dst;
     Mat dst2;
     Mat imgT;
-    Mat frameHSV;
+    Mat frameLab2;
+    float mean;
+    float std;
+    Mat lab;
     for(;;)
     {
         //usleep(10000);
@@ -45,15 +48,27 @@ int main(int argc, char** argv)
         if(frame.empty())
             break;
 
-        transLineal(frame, imgT);
+        
+        cv::cvtColor(frame, frameLab2, CV_BGR2Lab);
+        transLineal(frameLab2, imgT);
+        //cvtColor(imgT, gray, COLOR_BGR2GRAY);
+        //Ptr<CLAHE> clahe = createCLAHE();
+        //clahe->setClipLimit(4);
+        //Mat dst;
+        //clahe->apply(imgT,dst);
+        //imshow("gray", gray);
+        //imshow("dst", dst);
         //imshow("img TranLineal", imgT);
         cvtColor(imgT, gray, COLOR_BGR2GRAY);
         
         // v1 : -30
         // v2 : +10
-        double thresh_val = getMeanValue(gray) + 10;
-
+        
+        getMeanValue(gray,mean,std);
+        
+        double thresh_val = 105;
         std::cout << "thresh_val : " << thresh_val << std::endl; 
+        
         //blur( gray, gray, Size(3,3) );
         GaussianBlur(gray, gray, Size(3,3), 0, 0);
 
@@ -77,7 +92,7 @@ void findCenters(int thresh, int max_thresh)
                                        Size( 3, 3),
                                        Point( 1, 1 ) );
     erode( threshold_output, threshold_output, element );
-    imshow("threshold", threshold_output);
+    //imshow("threshold", threshold_output);
 
     findContours( threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
     vector<Point> centers(contours.size());
@@ -143,47 +158,63 @@ void findCenters(int thresh, int max_thresh)
 void transLineal(Mat inputImg,Mat& imgT)
 {
     //Mat ch1, ch2, ch3;
-    inputImg.convertTo(inputImg, CV_32FC1);
-    Mat channels[3];
+    //inputImg.convertTo(inputImg, CV_32FC1);
+    std::vector<cv::Mat> channels(3);
     Mat sum;
-
+    Mat lab_image;
     double min, max;
     split(inputImg, channels);
 
-    sum = channels[0] + channels[1] + channels[2];
+    //sum = channels[0] + channels[1] + channels[2];
 
-    minMaxLoc(sum, &min, &max);
+    //minMaxLoc(sum, &min, &max);
     //std::cout <<  max << std::endl;
 
     //std::cout << "sum : " << sum.size() << std::endl;
-    for (int i = 0; i < 3; i++)
-    {
+    //for (int i = 0; i < 3; i++)
+    //{
         //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
         //channels[i] /= sum;
         //channels[i] *= 255;
-        
-        //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
-        minMaxLoc(channels[i], &min, &max);
+        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+        clahe->setClipLimit(2.5);
+        cv::Mat dst;
+        clahe->apply(channels[0], dst);
+        dst.copyTo(channels[0]);
+        cv::merge(channels, lab_image);
+
+        cv::cvtColor(lab_image, imgT, CV_Lab2BGR);
+            //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
+        //minMaxLoc(channels[i], &min, &max);
         //std::cout <<  max << std::endl;
-        channels[i] = 255 * (channels[i] - min)/ (max - min);
-        channels[i].convertTo(channels[i], CV_8U);
+        //channels[i] = 255 * (channels[i] - min)/ (max - min);
+        //channels[i].convertTo(channels[i], CV_8UC1);
         //normalize(channels[i], channels[i], min, max, NORM_MINMAX);
-    }
-    merge(channels,3,imgT);
+    //}
+    //merge(channels,3,imgT);
     
 }
 
-double getMeanValue(Mat grayInp)
+void getMeanValue(Mat grayInp,float &meanPixels,float &stdPixels)
 {
-    float sumV = 0.0;
+    //float meanPixels = 0.0;
+    //float stdPixels = 0.0;
+    meanPixels = 0.0;
+    stdPixels = 0.0;
     float size = grayInp.rows * grayInp.cols;
     for (int i = 0; i < grayInp.rows; i++)
     {
         for(int j = 0; j < grayInp.cols; j++)
         {
-            sumV += grayInp.at<uint8_t>(i,j)/size;
+            meanPixels += grayInp.at<uint8_t>(i,j)/size;
         }
     }
-   
-    return sumV;
+    for (int i = 0; i < grayInp.rows; i++)
+    {
+        for(int j = 0; j < grayInp.cols; j++)
+        {
+            stdPixels += ((grayInp.at<uint8_t>(i,j) - meanPixels) * (grayInp.at<uint8_t>(i,j) - meanPixels))/size;
+        }
+    }
+    stdPixels = sqrt(stdPixels);
 }
