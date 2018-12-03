@@ -50,7 +50,7 @@ int main(int argc, char** argv)
         cvtColor(imgT, gray, COLOR_BGR2GRAY);
         
         // v1 : -30
-        // v2 : +10
+        // v2 : +10 
         double thresh_val = getMeanValue(gray) + 10;
 
         std::cout << "thresh_val : " << thresh_val << std::endl; 
