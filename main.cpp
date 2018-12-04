@@ -2,7 +2,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <stdio.h>
 #include <stdlib.h>
-//#include <time.h>
 #include <unistd.h>
 #include <iostream>
 using namespace cv;
@@ -21,12 +20,13 @@ Mat lab_image;
 
 int corners_prev[4] = {0, 0, 0, 0};
 
-void   findCenters(int, int);
-void transCLAHE(Mat, Mat&);
-void  transLineal(Mat, Mat&);
-void getMeanValue(Mat,float&,float &);
+void findCenters(int, int);
+void CLAHEtrans(Mat, Mat&);
+void chrCoor(Mat, Mat&);
+void getMeanPixel(Mat,float&,float &);
 bool isIncluded(vector<Point>, Point );
-int main(int argc, char** argv)
+
+int  main(int argc, char** argv)
 {
     
     string filename = argv[1];
@@ -59,21 +59,20 @@ int main(int argc, char** argv)
         //if CLAHE
         cv::cvtColor(frame, frameLab2, CV_BGR2Lab);
         
-        transCLAHE(frameLab2, imgT2);
+        CLAHEtrans(frameLab2, imgT2);
         //imshow("clahe",imgT2);
         
-        transLineal(imgT2,imgT);
+        chrCoor(imgT2,imgT);
         //imshow("lineal",imgT);
         cvtColor(imgT, gray, COLOR_BGR2GRAY);
         
         // v1 : -30
         // v2 : +10
         
-        getMeanValue(gray,mean,std);
+        getMeanPixel(gray,mean,std);
         
         double thresh_val = 105;
         //std::cout << "thresh_val : " << thresh_val << std::endl; 
-        
         //blur( gray, gray, Size(3,3) );
         GaussianBlur(gray, gray, Size(3,3), 0, 0);
 
@@ -90,7 +89,6 @@ bool isIncluded(vector<Point> X, Point Pt)
 {
     for(size_t ii = 0; ii < X.size(); ii ++)
     {
-        //std::cout << "in" <<std::endl;
         double dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
         if (dc <= 3)
             return true;
@@ -223,19 +221,12 @@ void findCenters(int thresh, int max_thresh)
         corners_prev[ic] = corners[ic];
     }
     
-    //std::cout << corners[0] << ", "<< corners[1] << ", "<< corners[2] <<", "<< corners[3] << std::endl;
-    rectangle( frame, Point(corners[0],corners[1]),Point(corners[2],corners[3]), cvScalar(0,255,0), 2, 8);  
-    /*
-    for (int ic = 0; ic < cornerPoints.size(); ic++)
-    {
-        RE( frame, cornerPoints[ic], cornerPoints[(ic+1)%4], cvScalar(0,255,0), 2, 8);  
-    }*/
+    //rectangle( frame, Point(corners[0],corners[1]),Point(corners[2],corners[3]), cvScalar(0,255,0), 2, 8);  
     imshow("foo", frame);
 }
 
-void transCLAHE(Mat inputImg,Mat& imgT)
+void CLAHEtrans(Mat inputImg,Mat& imgT)
 {
-    //inputImg.convertTo(inputImg, CV_32FC1);
     std::vector<cv::Mat> channels(3);
     split(inputImg, channels);
 
@@ -249,7 +240,7 @@ void transCLAHE(Mat inputImg,Mat& imgT)
     cv::cvtColor(lab_image, imgT, CV_Lab2BGR);    
 }
 
-void transLineal(Mat inputImg,Mat& imgT)
+void chrCoor(Mat inputImg,Mat& imgT)
 {
     double min, max;
     split(inputImg, channels);
@@ -259,11 +250,10 @@ void transLineal(Mat inputImg,Mat& imgT)
     for (int i = 0; i < 3; i++) 
     {
         channels[i].convertTo(channels[i], CV_32FC1);
-        //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
         channels[i] /= sum;
         channels[i] *= 255;
         channels[i].convertTo(channels[i], CV_8UC1);
-        minMaxLoc(channels[i], &min, &max);
+        //minMaxLoc(channels[i], &min, &max);
         //std::cout << "min :" << min <<", max : " << max << std::endl;
         channels[i].convertTo(channels[i], CV_8UC1);
     }
@@ -271,7 +261,7 @@ void transLineal(Mat inputImg,Mat& imgT)
     
 }
 
-void getMeanValue(Mat grayInp,float &meanPixels,float &stdPixels)
+void getMeanPixel(Mat grayInp,float &meanPixels,float &stdPixels)
 {
     meanPixels = 0.0;
     stdPixels = 0.0;
