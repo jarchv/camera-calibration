@@ -15,10 +15,17 @@ Mat frame;
 Mat gray;
 Mat normImg;
 
-void   findCenters(int, int);
-void   transLineal(Mat, Mat&);
-double getMeanValue(Mat );
 
+Mat channels[3];
+Mat lab_image;
+
+int corners_prev[4] = {0, 0, 0, 0};
+
+void   findCenters(int, int);
+void transCLAHE(Mat, Mat&);
+void  transLineal(Mat, Mat&);
+void getMeanValue(Mat,float&,float &);
+bool isIncluded(vector<Point>, Point );
 int main(int argc, char** argv)
 {
     
@@ -37,7 +44,11 @@ int main(int argc, char** argv)
     Mat dst;
     Mat dst2;
     Mat imgT;
-    Mat frameHSV;
+    Mat imgT2;
+    Mat frameLab2;
+    float mean;
+    float std;
+    Mat lab;
     for(;;)
     {
         //usleep(10000);
@@ -45,15 +56,24 @@ int main(int argc, char** argv)
         if(frame.empty())
             break;
 
-        transLineal(frame, imgT);
-        //imshow("img TranLineal", imgT);
+        //if CLAHE
+        cv::cvtColor(frame, frameLab2, CV_BGR2Lab);
+        
+        transCLAHE(frameLab2, imgT2);
+        //imshow("clahe",imgT2);
+        
+        transLineal(imgT2,imgT);
+        //imshow("lineal",imgT);
         cvtColor(imgT, gray, COLOR_BGR2GRAY);
         
         // v1 : -30
-        // v2 : +10 
-        double thresh_val = getMeanValue(gray) + 10;
-
-        std::cout << "thresh_val : " << thresh_val << std::endl; 
+        // v2 : +10
+        
+        getMeanValue(gray,mean,std);
+        
+        double thresh_val = 105;
+        //std::cout << "thresh_val : " << thresh_val << std::endl; 
+        
         //blur( gray, gray, Size(3,3) );
         GaussianBlur(gray, gray, Size(3,3), 0, 0);
 
@@ -66,6 +86,17 @@ int main(int argc, char** argv)
     cap.release();
 }
 
+bool isIncluded(vector<Point> X, Point Pt)
+{
+    for(size_t ii = 0; ii < X.size(); ii ++)
+    {
+        //std::cout << "in" <<std::endl;
+        double dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
+        if (dc <= 3)
+            return true;
+    }
+    return false;
+}
 void findCenters(int thresh, int max_thresh)
 {
     Mat threshold_output;
@@ -77,18 +108,18 @@ void findCenters(int thresh, int max_thresh)
                                        Size( 3, 3),
                                        Point( 1, 1 ) );
     erode( threshold_output, threshold_output, element );
-    imshow("threshold", threshold_output);
+    //imshow("threshold", threshold_output);
 
     findContours( threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
     vector<Point> centers(contours.size());
     vector<float> radius(contours.size());
-
+    vector<Point> pdCnts;
     vector<RotatedRect> minRect( contours.size() );
     vector<RotatedRect> minEllipse( contours.size() );
     int counte = 0;
     for( int i = 0; i < contours.size(); i++ )
     {
-        if( contours[i].size() > 4  && contours[i].size() < 150)
+        if( contours[i].size() > 7  && contours[i].size() < 180)
         {
             minRect[counte]    = minAreaRect( Mat(contours[i]) );
             minEllipse[counte] = fitEllipse( Mat(contours[i]) );
@@ -100,9 +131,9 @@ void findCenters(int thresh, int max_thresh)
     Point2f rect_points[4];
     int centerx;
     int centery;
-    int radiustemp;
-    int errormaxradio = 7;
-    int errormax = 3; 
+    float radiustemp;
+    float errormaxDiam = 7.0;
+    float errormax = 3.0; 
 
     Mat drawing = Mat::zeros( threshold_output.size(), CV_8UC3 );
 
@@ -126,64 +157,138 @@ void findCenters(int thresh, int max_thresh)
         {
             if(k != p){
                 float dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
-                if((dist <= errormax) && (abs(radiustemp - radius[k])>errormaxradio))
+                if((dist <= errormax) && (abs(radiustemp - radius[k])>errormaxDiam))
                 {
                     count++;
                 }
                 if(count > 0){
                     ellipse( frame, minEllipse[p], color, 2, 8);
+                    if (isIncluded(pdCnts, Point(centerx, centery)) == false)
+                    {
+                        pdCnts.push_back(Point(centerx, centery));
+                        //ellipse( frame, minEllipse[p], color, 2, 8);
+                    } 
                     break;
                 } 
             }
         }
     }
+
+    int corners[4] = {10000, 10000, 0, 0};
+    vector<Point> cornerPoints(4);
+
+    for(size_t pdi = 0; pdi < pdCnts.size(); pdi ++)
+    {
+        if (pdCnts[pdi].x < corners[0]){
+            cornerPoints[0] = pdCnts[pdi];
+            corners[0]      = pdCnts[pdi].x;
+        }
+        if (pdCnts[pdi].x > corners[2]){
+            cornerPoints[2] = pdCnts[pdi];
+            corners[2]      = pdCnts[pdi].x;
+        }
+        if (pdCnts[pdi].y < corners[1]){
+            cornerPoints[1] = pdCnts[pdi];
+            corners[1]      = pdCnts[pdi].y;
+        }
+
+        if (pdCnts[pdi].y > corners[3]){
+            cornerPoints[3] = pdCnts[pdi]; 
+            corners[3]      = pdCnts[pdi].y; 
+        }    
+        circle( frame, pdCnts[pdi], 2, cvScalar(0,0,255), 2, 8);  
+        /*int nCtrs = 0;
+        
+        for(size_t pdj = 0; pdj < pdCnts.size(); pdj ++)
+        {
+            auto currC = pdCnts[pdj];
+            auto distC = sqrt((pdCnts[pdi].x - currC.x)*(pdCnts[pdi].x  - currC.x) + (pdCnts[pdi].y - currC.y)*(pdCnts[pdi].y - currC.y));
+            if (distC < 75){
+                //std::cout << " ++" << std::endl;
+                nCtrs++;
+            }
+        }
+        std::cout << " count = " << nCtrs << std::endl;
+        if (nCtrs == 3)
+        {
+            std::cout << " == 3" << std::endl;
+            circle( frame, pdCnts[pdi], 2, cvScalar(0,0,255), 2, 8);  
+        }
+        //std::cout<< "X: " << pdCnts[pdi].x << "Y: " << pdCnts[pdi].y << std::endl;  
+        */
+    }
+    for (int ic = 0; ic < 4; ic++)
+    {
+        corners[ic] = 0.9 *corners[ic] + 0.1 * corners_prev[ic];
+        corners_prev[ic] = corners[ic];
+    }
+    
+    //std::cout << corners[0] << ", "<< corners[1] << ", "<< corners[2] <<", "<< corners[3] << std::endl;
+    rectangle( frame, Point(corners[0],corners[1]),Point(corners[2],corners[3]), cvScalar(0,255,0), 2, 8);  
+    /*
+    for (int ic = 0; ic < cornerPoints.size(); ic++)
+    {
+        RE( frame, cornerPoints[ic], cornerPoints[(ic+1)%4], cvScalar(0,255,0), 2, 8);  
+    }*/
     imshow("foo", frame);
+}
+
+void transCLAHE(Mat inputImg,Mat& imgT)
+{
+    //inputImg.convertTo(inputImg, CV_32FC1);
+    std::vector<cv::Mat> channels(3);
+    split(inputImg, channels);
+
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+    clahe->setClipLimit(3);
+    cv::Mat dst;
+    clahe->apply(channels[0], dst);
+    dst.copyTo(channels[0]);
+    cv::merge(channels, lab_image);
+
+    cv::cvtColor(lab_image, imgT, CV_Lab2BGR);    
 }
 
 void transLineal(Mat inputImg,Mat& imgT)
 {
-    //Mat ch1, ch2, ch3;
-    inputImg.convertTo(inputImg, CV_32FC1);
-    Mat channels[3];
-    Mat sum;
-
     double min, max;
     split(inputImg, channels);
 
-    sum = channels[0] + channels[1] + channels[2];
-
-    minMaxLoc(sum, &min, &max);
-    //std::cout <<  max << std::endl;
-
-    //std::cout << "sum : " << sum.size() << std::endl;
-    for (int i = 0; i < 3; i++)
+    Mat sum = channels[0] + channels[1] + channels[2];
+    sum.convertTo(sum, CV_32FC1);
+    for (int i = 0; i < 3; i++) 
     {
+        channels[i].convertTo(channels[i], CV_32FC1);
         //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
-        //channels[i] /= sum;
-        //channels[i] *= 255;
-        
-        //std::cout << "i :" << i <<" channels : " << channels[i].size() << std::endl;
+        channels[i] /= sum;
+        channels[i] *= 255;
+        channels[i].convertTo(channels[i], CV_8UC1);
         minMaxLoc(channels[i], &min, &max);
-        //std::cout <<  max << std::endl;
-        channels[i] = 255 * (channels[i] - min)/ (max - min);
-        channels[i].convertTo(channels[i], CV_8U);
-        //normalize(channels[i], channels[i], min, max, NORM_MINMAX);
+        //std::cout << "min :" << min <<", max : " << max << std::endl;
+        channels[i].convertTo(channels[i], CV_8UC1);
     }
     merge(channels,3,imgT);
     
 }
 
-double getMeanValue(Mat grayInp)
+void getMeanValue(Mat grayInp,float &meanPixels,float &stdPixels)
 {
-    float sumV = 0.0;
+    meanPixels = 0.0;
+    stdPixels = 0.0;
     float size = grayInp.rows * grayInp.cols;
     for (int i = 0; i < grayInp.rows; i++)
     {
         for(int j = 0; j < grayInp.cols; j++)
         {
-            sumV += grayInp.at<uint8_t>(i,j)/size;
+            meanPixels += grayInp.at<uint8_t>(i,j)/size;
         }
     }
-   
-    return sumV;
+    for (int i = 0; i < grayInp.rows; i++)
+    {
+        for(int j = 0; j < grayInp.cols; j++)
+        {
+            stdPixels += ((grayInp.at<uint8_t>(i,j) - meanPixels) * (grayInp.at<uint8_t>(i,j) - meanPixels))/size;
+        }
+    }
+    stdPixels = sqrt(stdPixels);
 }
