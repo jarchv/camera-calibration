@@ -57,13 +57,17 @@ int  main(int argc, char** argv)
             break;
 
         //if CLAHE
-        cv::cvtColor(frame, frameLab2, CV_BGR2Lab);
-        
+        //cv::cvtColor(frame, frameLab2, CV_BGR2Lab);
+
+        chrCoor(frame,imgT);
+        imshow("chromatic",imgT);
+
+        cv::cvtColor(imgT, frameLab2, CV_BGR2Lab);
         CLAHEtrans(frameLab2, imgT2);
-        //imshow("clahe",imgT2);
+        imshow("clahe",imgT2);
         
-        chrCoor(imgT2,imgT);
-        //imshow("lineal",imgT);
+        //chrCoor(imgT2,imgT);
+        //imshow("chromatic",imgT);
         cvtColor(imgT, gray, COLOR_BGR2GRAY);
         
         // v1 : -30
