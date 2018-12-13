@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(camcalib C CXX)
 project(base C CXX)
-find_package(OpenCV REQUIRED )
-
+#find_package(OpenCV REQUIRED )
+find_package(OpenCV 3.2.0 QUIET COMPONENTS imgproc highgui)
+if(NOT OpenCV_FOUND)
+  find_package(OpenCV 2.4.9.1 REQUIRED COMPONENTS imgproc highgui)
+endif()
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
