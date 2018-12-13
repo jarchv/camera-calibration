@@ -1,0 +1,8 @@
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/install.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/list_install_components.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/install/strip.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/install/local.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/base.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/out.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/edit_cache.dir
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/src/utils.cpp
+utils.h
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/src/utils.h
+
+/home/ghost/Documentos/cs/s2/imgs/tr2/camera-calibration/src/utils.h
+opencv2/imgproc/imgproc.hpp
+-
+opencv2/highgui/highgui.hpp
+-
+stdio.h
+-
+stdlib.h
+-
+unistd.h
+-
+iostream
+-
+
