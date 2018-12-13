@@ -43,7 +43,7 @@ void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
     // CV_Assert(sizeof(int) == 4);
     int *p_y1, *p_y2;
     uchar *p_inputMat, *p_outputMat;
-//#pragma parallel for
+
     for( int i = 0; i < nRows; ++i)
     {
         y1 = i-s2;
@@ -101,9 +101,10 @@ cv::Mat findCenters(cv::Mat frame,
                     cv::Mat& bin, 
                     cv::Mat& threshold_output,
                     int& countFrame,
-                    std::vector<cv::Point>& RpdCnts)
+                    std::vector<cv::Point>& RpdCnts,
+                    int& predictions)
 {
-
+    predictions = 0;
     std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
     std::vector<cv::Point> pdCnts(13);
@@ -178,6 +179,7 @@ cv::Mat findCenters(cv::Mat frame,
                 if((dist <= errormax) && (radius[k] - radiustemp)  > errormaxDiam)
                 {
                     count++;
+                    predictions++;
                 }
                 if(count > 0){
                     if (isIncluded(pdCnts, cv::Point(centerx, centery)) == false)
@@ -207,6 +209,7 @@ cv::Mat findCenters(cv::Mat frame,
                                 putText(result,std::to_string(countc),cv::Point(centerx, centery),cv::FONT_ITALIC,1.0,color,2); 
                             }
                             countc++;
+                            
                         }
                         else{
                             pdCnts[countc] = cv::Point(centerx, centery);
