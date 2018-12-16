@@ -29,7 +29,7 @@ add_executable(out src/main.cpp)
 
 set_target_properties(out PROPERTIES 
                       LINKER_LANGUAGE CXX
-                      COMPILE_FLAGS "-o2")
+                      COMPILE_FLAGS "-O2")
 target_link_libraries(out PRIVATE base ${OpenCV_LIBS})
 install(TARGETS out DESTINATION /usr/lib)
 

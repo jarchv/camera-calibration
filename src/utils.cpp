@@ -6,7 +6,7 @@ bool isIncluded(std::vector<cv::Point> X, cv::Point Pt)
     for(size_t ii = 0; ii < X.size(); ii ++)
     {
         dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
-        if (dc <= 4)
+        if (dc <= 2.0)
             return true;
     }
     return false;
@@ -100,50 +100,51 @@ void Mat2Mat(cv::Mat& src, cv::Mat& dst, int x0, int y0)
 cv::Mat findCenters(cv::Mat frame, 
                     cv::Mat gray, 
                     cv::Mat& bin, 
-                    cv::Mat& threshold_output,
+                    cv::Mat& contours_draw,
+                    std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& RpdCnts,
                     int& predictions)
 {
     predictions = 0;
-    std::vector<std::vector<cv::Point> > contours;
+    //std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
-    std::vector<cv::Point> pdCnts(13);
-
+    std::vector<cv::Point> pdCnts(23);
+    //cv::RNG rng(12345);
     cv::Mat result;
-
+    //cv::Mat contours_draw;
+    cv::Mat contours_input;
     frame.copyTo(result);
     int cb              = 0;
 
     bin = cv::Mat::zeros(gray.size(), CV_8UC1);
     thresholdIntegral(gray,bin);
 
-    //cv::moveWindow("threshold",1040,40);
-    //cv::imshow("threshold", bin);
-
-    cv::Mat element = cv::getStructuringElement( cv::MORPH_ELLIPSE,
+    bin.copyTo(contours_draw);
+    cv::cvtColor(contours_draw, contours_draw, CV_GRAY2RGB);
+    cv::Mat element = cv::getStructuringElement( cv::MORPH_RECT,
                                        cv::Size( 7,7),
-                                       cv::Point( 0, 0 ) );
-    cv::dilate( bin, threshold_output, element );
-    //erode(bin, threshold_output, element);CV_RETR_LIST
+                                       cv::Point( -1, -1) );
+    //cv::dilate( bin, threshold_output, element );
+    //cv::erode(threshold_output, threshold_output, element);
+    bin.copyTo(contours_input);
 
-    findContours(threshold_output, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
+    findContours(contours_input, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
     //findContours(threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
-
     std::vector<cv::Point> centers(contours.size());
-    std::vector<float> radius(contours.size());
+    std::vector<float> diag(contours.size());
 
     std::vector<cv::RotatedRect> minRect( contours.size() );
-    std::vector<cv::RotatedRect> minEllipse( contours.size() );
-    int counte = 0;
+    //std::vector<cv::RotatedRect> minEllipse( contours.size() );
+    int contours_count = 0;
     
     for( int i = 0; i < contours.size(); i++ )
     {
-        if(contours[i].size() > 5  && contours[i].size() < 250)
+        if(contours[i].size() > 25  && contours[i].size() < 250)
         {
-            minRect[counte]    = cv::minAreaRect( cv::Mat(contours[i]) );
-            minEllipse[counte] = cv::fitEllipse(  cv::Mat(contours[i]) );
-            counte++;
+            minRect[contours_count]    = cv::minAreaRect( cv::Mat(contours[i]) );
+            //minEllipse[contours_count] = cv::fitEllipse(  cv::Mat(contours[i]) );
+            contours_count++;
         }
     }
 
@@ -151,62 +152,63 @@ cv::Mat findCenters(cv::Mat frame,
     cv::Point2f rect_points[4];
     int centerx;
     int centery;
-    float radiustemp;
+    float diagtemp;
     float errormaxDiam = 5.5;
     float errormax = 2; 
     float minc;
     float dist;
-    int   count;
     float dist_centers;
 
-    cv::Mat drawing = cv::Mat::zeros( threshold_output.size(), CV_8UC3 );
+    cv::Mat drawing = cv::Mat::zeros( bin.size(), CV_8UC3 );
 
-    for( int i = 0; i< counte; i++ )
+    color = cv::Scalar( 255, 250, 50);
+    for( int i = 0; i< contours_count; i++ )
     {
-        color = cv::Scalar( 255, 255, 0);
+        
         minRect[i].points( rect_points );
         centerx = 0.5*(rect_points[0].x + rect_points[2].x);
         centery = 0.5*(rect_points[0].y + rect_points[2].y);
+        /*
+        cv::line(contours_draw, cv::Point(rect_points[0].x,rect_points[0].y), 
+                                cv::Point(rect_points[2].x,rect_points[2].y), 
+                                cv::Scalar( 0, 255, 0), 2, 8, 0);
+        */
         centers[i] = cv::Point(centerx,centery); 
-        radius[i] =  sqrt((rect_points[2].x - rect_points[0].x)*(rect_points[2].x - rect_points[0].x)+(rect_points[2].y - rect_points[0].y)*(rect_points[2].y - rect_points[0].y));
+        diag[i] =  sqrt((rect_points[2].x - rect_points[0].x)*(rect_points[2].x - rect_points[0].x)+(rect_points[2].y - rect_points[0].y)*(rect_points[2].y - rect_points[0].y));
     }
+
     int countc=0;
   
-    for(int p = 0;p<counte;p++){
+    for(int p = 0; p < contours_count; p++){
         minRect[p].points( rect_points );
         centerx = 0.5*(rect_points[0].x + rect_points[2].x);
         centery = 0.5*(rect_points[0].y + rect_points[2].y);
-        count   = 0;
-        radiustemp = sqrt(pow((rect_points[2].x - rect_points[0].x),2)+pow((rect_points[2].y - rect_points[0].y),2));
+        diagtemp = sqrt(pow((rect_points[2].x - rect_points[0].x),2)+pow((rect_points[2].y - rect_points[0].y),2));
 
-        for(int k = 0;k<counte;k++)
+        for(int k = 0; k < contours_count; k++)
         {
             if(k != p){
                 dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
-                if((dist <= errormax) && (radius[k] - radiustemp)  > errormaxDiam)
+                if((dist <= errormax) && (diag[k] - diagtemp)  > errormaxDiam)
                 {
-                    count++;
                     predictions++;
-                }
-
-                if(count > 0){
                     if (isIncluded(pdCnts, cv::Point(centerx, centery)) == false)
                     {
                         if(countFrame>0){
                             minc = 1e5;
-                            for(int c =  0;c<RpdCnts.size();c++){
+                            for(int c =  0; c < RpdCnts.size();c++){
                                 dist_centers = sqrt((centerx - RpdCnts[c].x)*(centerx - RpdCnts[c].x) + (centery - RpdCnts[c].y)*(centery - RpdCnts[c].y));
-                                if(dist_centers<minc){
+                                if(dist_centers < minc){
                                     minc = dist_centers;
                                     cb = c;
                                 }
                             }
                             
                             //std::cout << "current " << countc << " predic " << cb << std::endl;
-                            if(minc < 9)
+                            if(minc < 20)
                             {
                                 circle( result, cv::Point(centerx, centery),2, cvScalar(0,0,255), 2, 8); 
-                                putText(result,std::to_string(cb),cv::Point(centerx, centery),cv::FONT_ITALIC,1.0,color,2); 
+                                putText(result,std::to_string(cb + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
                                 pdCnts[cb] = cv::Point(centerx, centery);
                             }
 
@@ -214,7 +216,7 @@ cv::Mat findCenters(cv::Mat frame,
                             {
                                 pdCnts[countc] = cv::Point(centerx, centery);
                                 circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);  
-                                putText(result,std::to_string(countc),cv::Point(centerx, centery),cv::FONT_ITALIC,1.0,color,2); 
+                                putText(result,std::to_string(countc+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
                             }
                             countc++;
                             
@@ -226,7 +228,7 @@ cv::Mat findCenters(cv::Mat frame,
                         }
                     } 
                     break;
-                } 
+                }
             }
         }
     }

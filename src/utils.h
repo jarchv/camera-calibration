@@ -10,12 +10,13 @@
 #include <iostream>
 
 bool isIncluded(std::vector<cv::Point> X,
-                 cv::Point Pt);
+                cv::Point Pt);
 
 cv::Mat findCenters(cv::Mat frame, 
                     cv::Mat gray, 
                     cv::Mat& bin, 
-                    cv::Mat& contours,
+                    cv::Mat& contours_draw,
+                    std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& RpdCnts,
                     int& predictions);

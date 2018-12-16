@@ -4,12 +4,14 @@
 cv::Mat frame;
 cv::Mat bin;
 cv::Mat gray;
-cv::Mat contours;
+
+cv::Mat contours_draw;
 cv::Mat result;
 cv::Mat Template;
 
 clock_t begin_time;
 std::vector<cv::Point> RpdCnts;
+std::vector<std::vector<cv::Point>> contours;
 
 int main(int argc, char** argv)
 {
@@ -43,7 +45,7 @@ int main(int argc, char** argv)
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray, gray, cv::Size(3,3), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours, countFrame, RpdCnts,predict);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, RpdCnts,predict);
 
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
@@ -56,21 +58,29 @@ int main(int argc, char** argv)
 
         cv::cvtColor(gray       , gray      , cv::COLOR_GRAY2BGR);
         cv::cvtColor(bin        , bin       , cv::COLOR_GRAY2BGR);
-        cv::cvtColor(contours   , contours  , cv::COLOR_GRAY2BGR);
+        //cv::cvtColor(contours   , contours  , cv::COLOR_GRAY2BGR);
+        for (int ic = 0; ic < contours.size(); ic++)
+        {
+            cv::Scalar color = cv::Scalar(55,55,255);
+            cv::drawContours(contours_draw, contours, ic, color, 2, 8, -1, 0, cv::Point() );
+        }
+
+        cv::resize(frame        , frame         , cv::Size(T_width, T_height));
+        cv::resize(gray         , gray          , cv::Size(T_width, T_height));
+        cv::resize(bin          , bin           , cv::Size(T_width, T_height));  
+        cv::resize(contours_draw, contours_draw , cv::Size(T_width, T_height));
+        cv::resize(result       , result        , cv::Size(T_width, T_height));
+
+        Mat2Mat(frame        , Template, 10              ,               10);
+        Mat2Mat(gray         , Template, 10              ,     T_width + 20);
+        Mat2Mat(bin          , Template, 10              ,   T_width*2 + 30);
+        Mat2Mat(contours_draw, Template, 20 + T_height   ,               10);
+        Mat2Mat(result       , Template, 20 + T_height   ,     T_width + 20);
+
         
-        cv::resize(frame    , frame     , cv::Size(T_width, T_height));
-        cv::resize(gray     , gray      , cv::Size(T_width, T_height));
-        cv::resize(bin      , bin       , cv::Size(T_width, T_height));  
-        cv::resize(contours , contours  , cv::Size(T_width, T_height));
-        cv::resize(result   , result    , cv::Size(T_width, T_height));
 
-        Mat2Mat(frame   , Template, 10              ,               10);
-        Mat2Mat(gray    , Template, 10              ,     T_width + 20);
-        Mat2Mat(bin     , Template, 10              ,   T_width*2 + 30);
-        Mat2Mat(contours, Template, 20 + T_height   ,               10);
-        Mat2Mat(result  , Template, 20 + T_height   ,     T_width + 20);
-
-
+        
+        
         //std::string = "fps : " + std::to_string(1/time_avr);
 
         //cv::putText(Template,"Time per frame: " + std::to_string(float( clock () - begin_time ) /  CLOCKS_PER_SEC) + " seconds" , cv::Point(40, 30),cv::FONT_ITALIC,0,(0,0,255),3);
