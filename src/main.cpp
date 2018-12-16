@@ -84,6 +84,7 @@ int main(int argc, char** argv)
         //std::string = "fps : " + std::to_string(1/time_avr);
 
         //cv::putText(Template,"Time per frame: " + std::to_string(float( clock () - begin_time ) /  CLOCKS_PER_SEC) + " seconds" , cv::Point(40, 30),cv::FONT_ITALIC,0,(0,0,255),3);
+        /*
         if (countFrame == 30)
             std::cout << "time per frame is " << time_elapsed << " until " << countFrame<< " frames" << std::endl;
         else if (countFrame == 1e2)
@@ -98,6 +99,8 @@ int main(int argc, char** argv)
             std::cout << "time per frame is " << time_elapsed << " until " << countFrame<< " frames" << std::endl;
         else if (countFrame == 5e3)
             std::cout << "time per frame is " << time_elapsed << " until " << countFrame<< " frames" << std::endl;
+
+        */
         cv::putText(Template,"Time epalsed : " 
                                 + std::to_string(time_elapsed)
                                 + " seconds" , cv::Point(1100, 500),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1); 

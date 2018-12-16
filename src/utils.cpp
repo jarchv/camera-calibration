@@ -6,12 +6,21 @@ bool isIncluded(std::vector<cv::Point> X, cv::Point Pt)
     for(size_t ii = 0; ii < X.size(); ii ++)
     {
         dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
-        if (dc <= 2.0)
+        if (dc <= 5.0)
             return true;
     }
     return false;
 }
-
+/*
+bool centerVisited(std::vector<int> X, int Pos)
+{
+    for(size_t ii = 0; ii < X.size(); ii ++)
+    {
+        if (X[ii] != Pos)
+            return ii
+    }
+    return false;
+}*/
 void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
 {
     // accept only char type matrices
@@ -109,7 +118,8 @@ cv::Mat findCenters(cv::Mat frame,
     predictions = 0;
     //std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
-    std::vector<cv::Point> pdCnts(23);
+    std::vector<cv::Point> pdCnts(24);
+    std::vector<cv::Point> tempCnts;
     //cv::RNG rng(12345);
     cv::Mat result;
     //cv::Mat contours_draw;
@@ -154,11 +164,17 @@ cv::Mat findCenters(cv::Mat frame,
     int centery;
     float diagtemp;
     float errormaxDiam = 5.5;
-    float errormax = 2; 
+    float errormax = 5; 
     float minc;
     float dist;
     float dist_centers;
+    std::vector<int> centerVisited = {0,1,2,3,4,5,6,7,8,9,10,11};
 
+    std::vector<int> id4Center;
+    std::vector<cv::Point> Center4id;
+
+    //std::vector<3, int> noMatched;
+    int center_jump = 0;
     cv::Mat drawing = cv::Mat::zeros( bin.size(), CV_8UC3 );
 
     color = cv::Scalar( 255, 250, 50);
@@ -191,51 +207,116 @@ cv::Mat findCenters(cv::Mat frame,
                 dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
                 if((dist <= errormax) && (diag[k] - diagtemp)  > errormaxDiam)
                 {
-                    predictions++;
-                    if (isIncluded(pdCnts, cv::Point(centerx, centery)) == false)
-                    {
-                        if(countFrame>0){
-                            minc = 1e5;
-                            for(int c =  0; c < RpdCnts.size();c++){
-                                dist_centers = sqrt((centerx - RpdCnts[c].x)*(centerx - RpdCnts[c].x) + (centery - RpdCnts[c].y)*(centery - RpdCnts[c].y));
-                                if(dist_centers < minc){
-                                    minc = dist_centers;
-                                    cb = c;
-                                }
-                            }
-                            
-                            //std::cout << "current " << countc << " predic " << cb << std::endl;
-                            if(minc < 20)
-                            {
-                                circle( result, cv::Point(centerx, centery),2, cvScalar(0,0,255), 2, 8); 
-                                putText(result,std::to_string(cb + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
-                                pdCnts[cb] = cv::Point(centerx, centery);
-                            }
-
-                            else 
-                            {
-                                pdCnts[countc] = cv::Point(centerx, centery);
-                                circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);  
-                                putText(result,std::to_string(countc+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
-                            }
-                            countc++;
-                            
-                        }
-                        else{
-                            pdCnts[countc] = cv::Point(centerx, centery);
-                            cv::circle( result, cv::Point(centerx, centery), 2, cv::Scalar(0,0,255), 2, 8);  
-                            countc++;
-                        }
-                    } 
+                    //predictions++;
+                    tempCnts.push_back(cv::Point(centerx, centery));
                     break;
                 }
             }
         }
     }
+
+    for (int i = 0; i < tempCnts.size(); i++)
+    {
+        centerx = tempCnts[i].x;
+        centery = tempCnts[i].y;
+        if(countFrame>0){
+            minc = 1e5;
+            for(int c =  0; c < RpdCnts.size();c++){
+                dist_centers = sqrt((centerx - RpdCnts[c].x)*(centerx - RpdCnts[c].x) + (centery - RpdCnts[c].y)*(centery - RpdCnts[c].y));
+                if(dist_centers < minc){
+                    minc = dist_centers;
+                    cb = c;
+                }
+            }
+            
+            //std::cout << "current " << countc << " predic " << cb << std::endl;
+            //std::cout << "temp = " <<tempCnts.size() << std::endl;
+            if(minc < 10)
+            {
+                circle( result, cv::Point(centerx, centery),2, cvScalar(0,0,255), 2, 8); 
+                putText(result,std::to_string(cb + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+                pdCnts[cb] = cv::Point(centerx, centery);
+                centerVisited.erase(std::find(centerVisited.begin(),centerVisited.end(),cb));
+                predictions++;
+            }
+
+            else
+            {
+                //pdCnts[countc] = cv::Point(centerx, centery);
+                //circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);  
+                //putText(result,std::to_string(countc+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+                //std::cout<< "center jump : " << "i = "<< i << ", cb = " << cb <<  ", tempsize = " << tempCnts.size() << ", minc = " << minc <<std::endl;
+                //std::cout<< "dist = " << sqrt((centerx - RpdCnts[2].x)*(centerx - RpdCnts[2].x) + (centery - RpdCnts[2].y)*(centery - RpdCnts[2].y))<<std::endl;
+                /*
+                if (minc < 60)
+                {
+                    pdCnts[i] = cv::Point(centerx, centery);
+                    circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);
+                    putText(result,std::to_string(i+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+
+                }
+                else {
+                    center_jump++;
+                }
+                */
+                //id4Center.push_back(i);
+                Center4id.push_back(cv::Point(centerx,centery));
+                //Center4id[]
+                center_jump++;
+                /*                
+                                pdCnts[countc] = cv::Point(centerx, centery);
+                                circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);  
+                                putText(result,std::to_string(countc+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+                                newframe = true;
+                */                
+            }
+            //countc++;
+                            
+        }
+        else{
+            pdCnts[countc] = cv::Point(centerx, centery);
+            cv::circle( result, cv::Point(centerx, centery), 2, cv::Scalar(0,0,255), 2, 8);  
+            countc++;
+        }        
+    }
+    
+    //std::cout<< "center_jump = " << center_jump <<std::endl;
+
+    if (center_jump >= 4){
+        for (int i = 0; i < 12; i++)
+        {
+            centerx = tempCnts[i].x;
+            centery = tempCnts[i].y;
+            predictions++;
+            pdCnts[i] = cv::Point(centerx, centery);
+            circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);
+            putText(result,std::to_string(i+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+        }
+      
+    }
+    
+    else if (center_jump > 0)
+    {
+        if (centerVisited.size() > 0)
+        {
+
+            int rr = std::min(centerVisited.size(), Center4id.size());
+            for (int i = 0; i < rr; i++)
+            {
+                int newid = centerVisited[i];
+                centerx = Center4id[i].x;
+                centery = Center4id[i].y;
+                predictions++;
+                circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);
+                putText(result,std::to_string(newid+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2);  
+                pdCnts[newid] = cv::Point(centerx, centery);           
+            }
+        }
+
+    }
+    //predictions = pdCnts.size();
+    //std::cout << "pd :" << predictions << std::endl;
     RpdCnts = pdCnts;
-
- 
-
     countFrame++;
 
     return result;
