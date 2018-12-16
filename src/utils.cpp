@@ -2,9 +2,10 @@
 
 bool isIncluded(std::vector<cv::Point> X, cv::Point Pt)
 {
+    double dc;
     for(size_t ii = 0; ii < X.size(); ii ++)
     {
-        double dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
+        dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
         if (dc <= 4)
             return true;
     }
@@ -124,9 +125,10 @@ cv::Mat findCenters(cv::Mat frame,
                                        cv::Size( 7,7),
                                        cv::Point( 0, 0 ) );
     cv::dilate( bin, threshold_output, element );
-    //erode(bin, threshold_output, element);
+    //erode(bin, threshold_output, element);CV_RETR_LIST
 
-    findContours(threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
+    findContours(threshold_output, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
+    //findContours(threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
 
     std::vector<cv::Point> centers(contours.size());
     std::vector<float> radius(contours.size());
@@ -137,7 +139,7 @@ cv::Mat findCenters(cv::Mat frame,
     
     for( int i = 0; i < contours.size(); i++ )
     {
-        if( contours[i].size() > 5  && contours[i].size() < 250)
+        if(contours[i].size() > 5  && contours[i].size() < 250)
         {
             minRect[counte]    = cv::minAreaRect( cv::Mat(contours[i]) );
             minEllipse[counte] = cv::fitEllipse(  cv::Mat(contours[i]) );
@@ -153,6 +155,10 @@ cv::Mat findCenters(cv::Mat frame,
     float errormaxDiam = 5.5;
     float errormax = 2; 
     float minc;
+    float dist;
+    int   count;
+    float dist_centers;
+
     cv::Mat drawing = cv::Mat::zeros( threshold_output.size(), CV_8UC3 );
 
     for( int i = 0; i< counte; i++ )
@@ -170,24 +176,26 @@ cv::Mat findCenters(cv::Mat frame,
         minRect[p].points( rect_points );
         centerx = 0.5*(rect_points[0].x + rect_points[2].x);
         centery = 0.5*(rect_points[0].y + rect_points[2].y);
-        int count = 0;
+        count   = 0;
         radiustemp = sqrt(pow((rect_points[2].x - rect_points[0].x),2)+pow((rect_points[2].y - rect_points[0].y),2));
+
         for(int k = 0;k<counte;k++)
         {
             if(k != p){
-                float dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
+                dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
                 if((dist <= errormax) && (radius[k] - radiustemp)  > errormaxDiam)
                 {
                     count++;
                     predictions++;
                 }
+
                 if(count > 0){
                     if (isIncluded(pdCnts, cv::Point(centerx, centery)) == false)
                     {
                         if(countFrame>0){
                             minc = 1e5;
                             for(int c =  0;c<RpdCnts.size();c++){
-                                float dist_centers = sqrt((centerx - RpdCnts[c].x)*(centerx - RpdCnts[c].x) + (centery - RpdCnts[c].y)*(centery - RpdCnts[c].y));
+                                dist_centers = sqrt((centerx - RpdCnts[c].x)*(centerx - RpdCnts[c].x) + (centery - RpdCnts[c].y)*(centery - RpdCnts[c].y));
                                 if(dist_centers<minc){
                                     minc = dist_centers;
                                     cb = c;
