@@ -29,8 +29,6 @@ int main(int argc, char** argv)
     T_width  = (int)frame.cols*0.8;
     T_height = (int)frame.rows*0.8;
     
-
-    
     for(;;)
     {
         Template = cv::Mat(T_height*2 + 30, T_width*3 + 40, CV_8UC3, cv::Scalar(45,45,45));

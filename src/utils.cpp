@@ -132,9 +132,9 @@ cv::Mat findCenters(cv::Mat frame,
 
     bin.copyTo(contours_draw);
     cv::cvtColor(contours_draw, contours_draw, CV_GRAY2RGB);
-    cv::Mat element = cv::getStructuringElement( cv::MORPH_RECT,
+    /*cv::Mat element = cv::getStructuringElement( cv::MORPH_RECT,
                                        cv::Size( 7,7),
-                                       cv::Point( -1, -1) );
+                                       cv::Point( -1, -1) );*/
     //cv::dilate( bin, threshold_output, element );
     //cv::erode(threshold_output, threshold_output, element);
     bin.copyTo(contours_input);
@@ -278,6 +278,9 @@ cv::Mat findCenters(cv::Mat frame,
             cv::circle( result, cv::Point(centerx, centery), 2, cv::Scalar(0,0,255), 2, 8);  
             countc++;
         }        
+    }
+    for(int i = 0;i< 11;i++){
+        cv::line(result,pdCnts[i],pdCnts[i+1],cv::Scalar(180,0,0),2);
     }
     
     //std::cout<< "center_jump = " << center_jump <<std::endl;
