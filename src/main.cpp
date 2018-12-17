@@ -11,6 +11,7 @@ cv::Mat Template;
 
 clock_t begin_time;
 std::vector<cv::Point> RpdCnts;
+std::vector<cv::Point> CurrCenters;
 std::vector<std::vector<cv::Point>> contours;
 
 int main(int argc, char** argv)
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray, gray, cv::Size(3,3), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, RpdCnts,predict);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, RpdCnts, CurrCenters, predict);
 
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;

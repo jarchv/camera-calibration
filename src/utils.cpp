@@ -1,26 +1,38 @@
 #include "utils.h"
 
-bool isIncluded(std::vector<cv::Point> X, cv::Point Pt)
+std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRect,
+                            std::vector<cv::Point> centers,
+                            std::vector<float> diag,
+                            int contours_count)
 {
-    double dc;
-    for(size_t ii = 0; ii < X.size(); ii ++)
-    {
-        dc = sqrt((X[ii].x - Pt.x)*(X[ii].x - Pt.x) + (X[ii].y - Pt.y)*(X[ii].y - Pt.y));
-        if (dc <= 5.0)
-            return true;
+    std::vector<cv::Point> tempCnts;
+    cv::Point2f rect_points[4];
+    int centerx;
+    int centery;
+    float diagtemp;
+    float errormaxDiam = 5.5;
+    float errormax = 5; 
+    float dist;
+    for(int p = 0; p < contours_count; p++){
+        minRect[p].points( rect_points );
+        centerx = 0.5*(rect_points[0].x + rect_points[2].x);
+        centery = 0.5*(rect_points[0].y + rect_points[2].y);
+        diagtemp = sqrt(pow((rect_points[2].x - rect_points[0].x),2)+pow((rect_points[2].y - rect_points[0].y),2));
+
+        for(int k = 0; k < contours_count; k++)
+        {
+            if(k != p){
+                dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
+                if((dist <= errormax) && (diag[k] - diagtemp)  > errormaxDiam)
+                {
+                    tempCnts.push_back(cv::Point(centerx, centery));
+                    break;
+                }
+            }
+        }
     }
-    return false;
+    return tempCnts;   
 }
-/*
-bool centerVisited(std::vector<int> X, int Pos)
-{
-    for(size_t ii = 0; ii < X.size(); ii ++)
-    {
-        if (X[ii] != Pos)
-            return ii
-    }
-    return false;
-}*/
 void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
 {
     // accept only char type matrices
@@ -106,30 +118,6 @@ void Mat2Mat(cv::Mat& src, cv::Mat& dst, int x0, int y0)
     }
 }
 
-void differenceFrame(cv::Mat prev,cv::Mat current){
-    cv::Mat diffImage;
-    cv::absdiff(prev, current, diffImage);
-       cv::Mat foregroundMask = cv::Mat::zeros(diffImage.rows, diffImage.cols, CV_8UC1);
-    std::cout << "dddd" << std::endl;
-    float threshold = 30.0f;
-    float dist;
-
-    for(int j=0; j<diffImage.rows; ++j)
-        for(int i=0; i<diffImage.cols; ++i)
-        {
-            cv::Vec3b pix = diffImage.at<cv::Vec3b>(j,i);
-
-            dist = (pix[0]*pix[0] + pix[1]*pix[1] + pix[2]*pix[2]);
-            dist = sqrt(dist);
-
-            if(dist>threshold)
-            {
-                foregroundMask.at<unsigned char>(j,i) = 255;
-            }
-        }
-    cv::imshow("diff",foregroundMask);
-
-}
 int prevcenterx = 0;
 int prevcentery = 0;
 cv::Point prevCenter = cv::Point(0,0);
@@ -142,16 +130,15 @@ cv::Mat findCenters(cv::Mat frame,
                     std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& RpdCnts,
+                    std::vector<cv::Point>& CurrCenters,
                     int& predictions)
 {
     predictions = 0;
-    //std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
     std::vector<cv::Point> pdCnts(24);
     std::vector<cv::Point> tempCnts;
-    //cv::RNG rng(12345);
     cv::Mat result;
-    //cv::Mat contours_draw;
+
     cv::Mat contours_input;
     frame.copyTo(result);
     int cb              = 0;
@@ -161,11 +148,6 @@ cv::Mat findCenters(cv::Mat frame,
 
     bin.copyTo(contours_draw);
     cv::cvtColor(contours_draw, contours_draw, CV_GRAY2RGB);
-    /*cv::Mat element = cv::getStructuringElement( cv::MORPH_RECT,
-                                       cv::Size( 7,7),
-                                       cv::Point( -1, -1) );*/
-    //cv::dilate( bin, threshold_output, element );
-    //cv::erode(threshold_output, threshold_output, element);
     bin.copyTo(contours_input);
 
     findContours(contours_input, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE, prevCenter);
@@ -202,7 +184,6 @@ cv::Mat findCenters(cv::Mat frame,
     std::vector<int> id4Center;
     std::vector<cv::Point> Center4id;
 
-    //std::vector<3, int> noMatched;
     int center_jump = 0;
     cv::Mat drawing = cv::Mat::zeros( bin.size(), CV_8UC3 );
 
@@ -214,37 +195,14 @@ cv::Mat findCenters(cv::Mat frame,
         minRect[i].points( rect_points );
         centerx = 0.5*(rect_points[0].x + rect_points[2].x);
         centery = 0.5*(rect_points[0].y + rect_points[2].y);
-        /*
-        cv::line(contours_draw, cv::Point(rect_points[0].x,rect_points[0].y), 
-                                cv::Point(rect_points[2].x,rect_points[2].y), 
-                                cv::Scalar( 0, 255, 0), 2, 8, 0);
-        */
         centers[i] = cv::Point(centerx,centery); 
         diag[i] =  sqrt((rect_points[2].x - rect_points[0].x)*(rect_points[2].x - rect_points[0].x)+(rect_points[2].y - rect_points[0].y)*(rect_points[2].y - rect_points[0].y));
     }
 
     int countc=0;
-  
-    for(int p = 0; p < contours_count; p++){
-        minRect[p].points( rect_points );
-        centerx = 0.5*(rect_points[0].x + rect_points[2].x);
-        centery = 0.5*(rect_points[0].y + rect_points[2].y);
-        diagtemp = sqrt(pow((rect_points[2].x - rect_points[0].x),2)+pow((rect_points[2].y - rect_points[0].y),2));
 
-        for(int k = 0; k < contours_count; k++)
-        {
-            if(k != p){
-                dist = sqrt((centerx - centers[k].x)*(centerx - centers[k].x) + (centery - centers[k].y)*(centery - centers[k].y));
-                if((dist <= errormax) && (diag[k] - diagtemp)  > errormaxDiam)
-                {
-                    //predictions++;
-                    tempCnts.push_back(cv::Point(centerx, centery));
-                    break;
-                }
-            }
-        }
-    }
-
+    tempCnts = findConcentricCenters(minRect, centers, diag, contours_count);
+    
     for (int i = 0; i < tempCnts.size(); i++)
     {
         centerx = tempCnts[i].x;
@@ -257,57 +215,25 @@ cv::Mat findCenters(cv::Mat frame,
                     minc = dist_centers;
                     cb = c;
                 }
-                //diffx[c] = centerx - RpdCnts[c].x;
-                //diffy[c] = centery - RpdCnts[c].y;
-                                    
             }
-
-            //std::cout << "current " << countc << " predic " << cb << std::endl;
-            //std::cout << "temp = " <<tempCnts.size() << std::endl;
             if(minc < 10)
             {
                 circle( result, cv::Point(centerx, centery),2, cvScalar(0,0,255), 2, 8); 
                 putText(result,std::to_string(cb + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
                 pdCnts[cb] = cv::Point(centerx, centery);
-
                 centerVisited.erase(std::find(centerVisited.begin(),centerVisited.end(),cb));
                 predictions++;
             }
 
             else
             {
-                //pdCnts[countc] = cv::Point(centerx, centery);
-                //circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);  
-                //putText(result,std::to_string(countc+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
-                //std::cout<< "center jump : " << "i = "<< i << ", cb = " << cb <<  ", tempsize = " << tempCnts.size() << ", minc = " << minc <<std::endl;
-                //std::cout<< "dist = " << sqrt((centerx - RpdCnts[2].x)*(centerx - RpdCnts[2].x) + (centery - RpdCnts[2].y)*(centery - RpdCnts[2].y))<<std::endl;
-                /*
-                if (minc < 60)
-                {
-                    pdCnts[i] = cv::Point(centerx, centery);
-                    circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);
-                    putText(result,std::to_string(i+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
-
-                }
-                else {
-                    center_jump++;
-                }
-                */
-                //id4Center.push_back(i);
                 Center4id.push_back(cv::Point(centerx,centery));
-                //Center4id[]
-                center_jump++;
-                /*                
-                                pdCnts[countc] = cv::Point(centerx, centery);
-                                circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);  
-                                putText(result,std::to_string(countc+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
-                                newframe = true;
-                */                
+                center_jump++;  
             }
-            //countc++;
                             
         }
         else{
+            //centerVisited = {};
             pdCnts[countc] = cv::Point(centerx, centery);
             cv::circle( result, cv::Point(centerx, centery), 2, cv::Scalar(0,0,255), 2, 8);  
             putText(result,std::to_string(countc + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
@@ -316,13 +242,11 @@ cv::Mat findCenters(cv::Mat frame,
         }        
     }
 
-    //std::cout<< "center_jump = " << center_jump <<std::endl;
-
     if (center_jump >= 4){
         
         int minx = 100000;
         int maxy = 0;
-        
+        centerVisited = {};
         for(int j = 0; j<tempCnts.size();j++){
             if(tempCnts[j].x < minx){
                 minx = tempCnts[j].x;
@@ -347,11 +271,11 @@ cv::Mat findCenters(cv::Mat frame,
 
         cv::Point p2 = cv::Point(maxx,miny);
         int currentDistance = sqrt(pow((p2.x - p1.x),2)+pow((p2.y - p1.y),2));
-        std::cout << " max " << maxdistance << " - " << " currentd " << currentDistance << std::endl;
+        //std::cout << " max " << maxdistance << " - " << " currentd " << currentDistance << std::endl;
         if(maxdistance <= currentDistance){
             int currentcenterx = 0.5*(p1.x + p2.x);
             int currentcentery = 0.5*(p1.y + p2.y);
-            std::cout << "cx " << currentcenterx << " cy " << currentcentery << " - " << "px " << prevcenterx << " py " << prevcentery << std::endl;
+            //std::cout << "cx " << currentcenterx << " cy " << currentcentery << " - " << "px " << prevcenterx << " py " << prevcentery << std::endl;
 
             int x = currentcenterx - prevcenterx;
             int y = currentcentery - prevcentery;
@@ -389,8 +313,9 @@ cv::Mat findCenters(cv::Mat frame,
     {
         if (centerVisited.size() > 0)
         {
-
             int rr = std::min(centerVisited.size(), Center4id.size());
+
+            std::cout << centerVisited.size() << ", " << Center4id.size() << ", " << rr << std::endl;
             for (int i = 0; i < rr; i++)
             {
                 int newid = centerVisited[i];
@@ -402,7 +327,7 @@ cv::Mat findCenters(cv::Mat frame,
                 pdCnts[newid] = cv::Point(centerx, centery);           
             }
         }
-
+        //centerVisited = {};
     }
     else{
         if(maxdistance < sqrt(pow((pdCnts[11].x - pdCnts[0].x),2)+pow((pdCnts[11].y - pdCnts[0].y),2))){
@@ -411,11 +336,18 @@ cv::Mat findCenters(cv::Mat frame,
     }
     prevcenterx = 0.5*(pdCnts[0].x + pdCnts[11].x);
     prevcentery = 0.5*(pdCnts[0].y + pdCnts[11].y);
-
-    for(int i = 0;i< 11;i++){
-        cv::line(result,pdCnts[i],pdCnts[i+1],cv::Scalar(0,0,100),2);
-    }
     
+    /*
+    
+    std::cout << "centerVisited.size() = " << centerVisited.size() << std::endl;
+    for (int i = 0; i < centerVisited.size(); i++)
+    {
+        pdCnts.erase(pdCnts.begin() + i);
+    }
+    */
+    for(int i = 0;i< 11;i++){
+        cv::line(result,pdCnts[i],pdCnts[i+1],cv::Scalar(0,250,50),2);
+    }
     RpdCnts = pdCnts;
     prev = frame;
     countFrame++;
