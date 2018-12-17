@@ -79,7 +79,7 @@ int main(int argc, char** argv)
         
 
         
-        
+        //std::cout << "->" << std::endl;
         //std::string = "fps : " + std::to_string(1/time_avr);
 
         //cv::putText(Template,"Time per frame: " + std::to_string(float( clock () - begin_time ) /  CLOCKS_PER_SEC) + " seconds" , cv::Point(40, 30),cv::FONT_ITALIC,0,(0,0,255),3);

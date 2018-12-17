@@ -10,9 +10,20 @@ std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRe
     int centerx;
     int centery;
     float diagtemp;
-    float errormaxDiam = 5.5;
-    float errormax = 5; 
+    float errormaxDiam = 2.5;
+    float errormax = 6; 
     float dist;
+
+    for( int i = 0; i< contours_count; i++ )
+    {
+        
+        minRect[i].points( rect_points );
+        centerx = 0.5*(rect_points[0].x + rect_points[2].x);
+        centery = 0.5*(rect_points[0].y + rect_points[2].y);
+        centers[i] = cv::Point(centerx,centery); 
+        diag[i] =  sqrt((rect_points[2].x - rect_points[0].x)*(rect_points[2].x - rect_points[0].x)+(rect_points[2].y - rect_points[0].y)*(rect_points[2].y - rect_points[0].y));
+    }
+
     for(int p = 0; p < contours_count; p++){
         minRect[p].points( rect_points );
         centerx = 0.5*(rect_points[0].x + rect_points[2].x);
@@ -56,6 +67,7 @@ void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
     CV_Assert(sizeof(int) == 4);
 
     int S = MAX(nRows, nCols)/8;
+    //int S = MAX(nRows, nCols)/16;
     double T = 0.15;
 
     // perform thresholding
@@ -135,7 +147,7 @@ cv::Mat findCenters(cv::Mat frame,
 {
     predictions = 0;
     std::vector<cv::Vec4i> hierarchy;
-    std::vector<cv::Point> pdCnts(24);
+    std::vector<cv::Point> pdCnts(12);
     std::vector<cv::Point> tempCnts;
     cv::Mat result;
 
@@ -170,17 +182,17 @@ cv::Mat findCenters(cv::Mat frame,
     }
 
     cv::Scalar color;
-    cv::Point2f rect_points[4];
+    //cv::Point2f rect_points[4];
     int centerx;
     int centery;
-    float diagtemp;
-    float errormaxDiam = 5.5;
-    float errormax = 5; 
+    //float diagtemp;
+    //float errormaxDiam = 5.5;
+    //float errormax = 5; 
     float minc;
-    float dist;
+    //float dist;
     float dist_centers;
     std::vector<int> centerVisited = {0,1,2,3,4,5,6,7,8,9,10,11};
-
+    //std::vector<int> centerVisited = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
     std::vector<int> id4Center;
     std::vector<cv::Point> Center4id;
 
@@ -189,20 +201,10 @@ cv::Mat findCenters(cv::Mat frame,
 
 
     color = cv::Scalar( 255, 250, 50);
-    for( int i = 0; i< contours_count; i++ )
-    {
-        
-        minRect[i].points( rect_points );
-        centerx = 0.5*(rect_points[0].x + rect_points[2].x);
-        centery = 0.5*(rect_points[0].y + rect_points[2].y);
-        centers[i] = cv::Point(centerx,centery); 
-        diag[i] =  sqrt((rect_points[2].x - rect_points[0].x)*(rect_points[2].x - rect_points[0].x)+(rect_points[2].y - rect_points[0].y)*(rect_points[2].y - rect_points[0].y));
-    }
-
     int countc=0;
 
     tempCnts = findConcentricCenters(minRect, centers, diag, contours_count);
-    
+
     for (int i = 0; i < tempCnts.size(); i++)
     {
         centerx = tempCnts[i].x;
@@ -233,7 +235,7 @@ cv::Mat findCenters(cv::Mat frame,
                             
         }
         else{
-            //centerVisited = {};
+            centerVisited = {};
             pdCnts[countc] = cv::Point(centerx, centery);
             cv::circle( result, cv::Point(centerx, centery), 2, cv::Scalar(0,0,255), 2, 8);  
             putText(result,std::to_string(countc + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
@@ -315,7 +317,7 @@ cv::Mat findCenters(cv::Mat frame,
         {
             int rr = std::min(centerVisited.size(), Center4id.size());
 
-            std::cout << centerVisited.size() << ", " << Center4id.size() << ", " << rr << std::endl;
+            //std::cout << centerVisited.size() << ", " << Center4id.size() << ", " << rr << std::endl;
             for (int i = 0; i < rr; i++)
             {
                 int newid = centerVisited[i];
@@ -327,6 +329,12 @@ cv::Mat findCenters(cv::Mat frame,
                 pdCnts[newid] = cv::Point(centerx, centery);           
             }
         }
+        /*
+        for (int i = 0; i < centerVisited.size(); i++)
+        {
+            pdCnts.erase(pdCnts.begin() + centerVisited[i]);
+        }
+        */
         //centerVisited = {};
     }
     else{
@@ -337,17 +345,23 @@ cv::Mat findCenters(cv::Mat frame,
     prevcenterx = 0.5*(pdCnts[0].x + pdCnts[11].x);
     prevcentery = 0.5*(pdCnts[0].y + pdCnts[11].y);
     
-    /*
     
-    std::cout << "centerVisited.size() = " << centerVisited.size() << std::endl;
+    
+    //std::cout << "centerVisited.size() = " << centerVisited.size() << std::endl;
+    /*
     for (int i = 0; i < centerVisited.size(); i++)
     {
-        pdCnts.erase(pdCnts.begin() + i);
+        pdCnts.erase(pdCnts.begin() + centerVisited[i]);
     }
     */
+    
     for(int i = 0;i< 11;i++){
-        cv::line(result,pdCnts[i],pdCnts[i+1],cv::Scalar(0,250,50),2);
+        if ((pdCnts[i].x == 0 && pdCnts[i].y == 0) || (pdCnts[i+1].x == 0 && pdCnts[i+1].y == 0))
+            continue;
+        else
+            cv::line(result,pdCnts[i],pdCnts[i+1],cv::Scalar(0,250,50),2);
     }
+    
     RpdCnts = pdCnts;
     prev = frame;
     countFrame++;
