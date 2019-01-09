@@ -19,7 +19,7 @@ cv::Mat findCenters(cv::Mat frame,
                     std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& RpdCnts,
-                    std::vector<cv::Point>& CurrCenters,
+                    std::vector<cv::Point3i>& PointsTracking,
                     int& predictions);
 
 void thresholdIntegral( cv::Mat &inputMat, 
@@ -30,4 +30,21 @@ std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRe
                             std::vector<cv::Point> centers,
                             std::vector<float>,
                             int contours_count);
+
+
+void calcPointPosition(std::vector<cv::Point3f>& corners);
+
+bool Calibration(cv::Size imgSize, 
+                cv::Mat& cameraMatrix, 
+                cv::Mat& distCoeffs,
+                std::vector<std::vector<cv::Point2f>> imagePoints,
+                std::vector<cv::Mat>& rvecs,
+                std::vector<cv::Mat>& tvecs,
+                std::vector<float>& projectErrors,
+                double& totalAvgErr);
+                
+bool SaveParams(cv::Size imgSize, 
+                cv::Mat& cameraMatrix, 
+                cv::Mat& distCoeffs,
+                std::vector<std::vector<cv::Point2f>> imagePoints);
 #endif

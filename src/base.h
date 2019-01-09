@@ -9,3 +9,7 @@ int predict;
 float ground_truth = 12;
 float accuracy; 
 float erros=0;
+
+int CAPTURING  = 0;
+int CALIBRATED = 1;
+int mode       = 0;

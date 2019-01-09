@@ -1,5 +1,131 @@
 #include "utils.h"
+#include <opencv2/calib3d/calib3d.hpp>
 
+void drawCorners(cv::Mat& img, std::vector<cv::Point> allPoints)
+{
+    std::vector<cv::Point3i> corners(4);
+
+    int maxX = -1;
+    int maxY = -1;
+    int minX = 1000;
+    int minY = 1000;
+    
+    for(int i = 0; i < allPoints.size(); i++)
+    {
+        if (allPoints[i].x <= minX)
+        {
+            minX = allPoints[i].x;
+            corners[0].x = i;
+            corners[0].y = allPoints[i].x;
+            corners[0].z = allPoints[i].y;
+        }
+        if (allPoints[i].x > maxX)
+        {
+            maxX = allPoints[i].x;
+            corners[2].x = i;
+            corners[2].y = allPoints[i].x;
+            corners[2].z = allPoints[i].y;
+        }
+        if (allPoints[i].y <= minY)
+        {
+            minY = allPoints[i].y;
+            corners[1].x = i;
+            corners[1].y = allPoints[i].x;
+            corners[1].z = allPoints[i].y;
+        }
+        if (allPoints[i].y > maxY)
+        {
+            maxY = allPoints[i].y;
+            corners[3].x = i;
+            corners[3].y = allPoints[i].x;
+            corners[3].z = allPoints[i].y;
+        }
+        circle( img, cv::Point(allPoints[i].x, allPoints[i].y), 2, cvScalar(255,0,50), 5, 8);
+    }
+    
+    //std::cout << minX << ", "<< minY << ", "<< maxX << ", "<<  maxY << std::endl;
+
+    for (int j = 0; j < corners.size()+1;j++)
+    {
+        //std::cout << corners[j%4].y << ", "<< corners[j%4].z << ", "<< corners[(j+1)%4].y << ", "<<  corners[(j+1)%4].z << std::endl;
+        cv::line(img,cv::Point(corners[j%4].y, corners[j%4].z),cv::Point(corners[(j+1)%4].y, corners[(j+1)%4].z),cv::Scalar(255,0,50),2);
+    }
+}
+
+int trancking(  cv::Mat& img,
+                std::vector<cv::Point> tempCnts, 
+                std::vector<cv::Point>& prevCenters,
+                std::vector<cv::Point3i>& PointsTracking,
+                std::vector<cv::Point>& nextCenters,
+                std::vector<cv::Point>& Center4id,
+                std::vector<int>& centerVisited,
+                int countFrame,
+                int& predictions
+                )
+{
+    int centerx;
+    int centery;
+    int dist_centers;
+    int countc      = 0;
+    int cb          = 0;
+    int center_jump = 0;
+
+    float minc;
+    //std::cout << "--> 1" << std::endl;
+    
+    cv::Scalar color = cv::Scalar( 255, 250, 50);
+    for (int i = 0; i < tempCnts.size(); i++)
+    {
+        centerx = tempCnts[i].x;
+        centery = tempCnts[i].y;
+        if(countFrame > 0){
+            minc = 1e5;
+            for(int c =  0; c < prevCenters.size();c++){
+                dist_centers = sqrt((centerx - prevCenters[c].x)*(centerx - prevCenters[c].x) + (centery - prevCenters[c].y)*(centery - prevCenters[c].y));
+                if(dist_centers < minc){
+                    minc = dist_centers;
+                    cb = c;
+                }
+                //std::cout << "--> 2" << std::endl;
+            }
+            if(minc < 10)
+            {
+                //circle( img, cv::Point(centerx, centery),2, cvScalar(0,0,255), 2, 8); 
+                //putText(img,std::to_string(cb + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+                //std::cout << "--> 3" << std::endl;
+                PointsTracking.push_back(cv::Point3i(cb + 1, centerx, centery));
+                //std::cout << "--> 3" << std::endl;
+                //if (cb < 12)
+                nextCenters[cb] = cv::Point(centerx, centery);
+                //std::cout << "--> 3" << std::endl;
+                centerVisited.erase(std::find(centerVisited.begin(),centerVisited.end(),cb));
+                //std::cout << "--> 3" << std::endl;
+                predictions++;
+                //std::cout << "--> 3" << std::endl;
+            }
+
+            else
+            {
+                //std::cout << "--> 4" << std::endl;
+                Center4id.push_back(cv::Point(centerx,centery));
+                center_jump++;  
+                //std::cout << "--> 4" << std::endl;
+            }
+                          
+        }
+        else{
+            centerVisited = {};
+            nextCenters[countc] = cv::Point(centerx, centery);
+            PointsTracking.push_back(cv::Point3i(countc + 1, centerx, centery));
+            //cv::circle( img, cv::Point(centerx, centery), 2, cv::Scalar(0,0,255), 2, 8);  
+            //putText(img,std::to_string(countc + 1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
+            //tempCnts[countc] = cv::Point(centerx, centery);
+            countc++;
+        }        
+    }
+    //std::cout << "--> 5" << std::endl;
+    return center_jump;
+}
 std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRect,
                             std::vector<cv::Point> centers,
                             std::vector<float> diag,
@@ -13,6 +139,7 @@ std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRe
     float errormaxDiam = 2.5;
     float errormax = 6; 
     float dist;
+    
 
     for( int i = 0; i< contours_count; i++ )
     {
@@ -66,8 +193,8 @@ void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
     CV_Assert(sumMat.depth() == CV_32S);
     CV_Assert(sizeof(int) == 4);
 
+    //int S = MAX(nRows, nCols)/8;
     int S = MAX(nRows, nCols)/8;
-    //int S = MAX(nRows, nCols)/16;
     double T = 0.15;
 
     // perform thresholding
@@ -142,9 +269,10 @@ cv::Mat findCenters(cv::Mat frame,
                     std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& RpdCnts,
-                    std::vector<cv::Point>& CurrCenters,
+                    std::vector<cv::Point3i>& PointsTracking,
                     int& predictions)
 {
+    PointsTracking = {};
     predictions = 0;
     std::vector<cv::Vec4i> hierarchy;
     std::vector<cv::Point> pdCnts(12);
@@ -182,20 +310,15 @@ cv::Mat findCenters(cv::Mat frame,
     }
 
     cv::Scalar color;
-    //cv::Point2f rect_points[4];
     int centerx;
     int centery;
-    //float diagtemp;
-    //float errormaxDiam = 5.5;
-    //float errormax = 5; 
     float minc;
-    //float dist;
     float dist_centers;
     std::vector<int> centerVisited = {0,1,2,3,4,5,6,7,8,9,10,11};
     //std::vector<int> centerVisited = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19};
     std::vector<int> id4Center;
     std::vector<cv::Point> Center4id;
-
+    //std::vector<cv::Point3i> PointsTracking;
     int center_jump = 0;
     cv::Mat drawing = cv::Mat::zeros( bin.size(), CV_8UC3 );
 
@@ -203,8 +326,21 @@ cv::Mat findCenters(cv::Mat frame,
     color = cv::Scalar( 255, 250, 50);
     int countc=0;
 
-    tempCnts = findConcentricCenters(minRect, centers, diag, contours_count);
-
+    tempCnts    = findConcentricCenters(minRect, centers, diag, contours_count);
+    
+    center_jump = trancking(result,
+                            tempCnts, 
+                            RpdCnts,
+                            PointsTracking,
+                            pdCnts,
+                            Center4id,
+                            centerVisited,
+                            countFrame,
+                            predictions
+                            );   
+    
+    //drawCorners(result, tempCnts);
+    /*
     for (int i = 0; i < tempCnts.size(); i++)
     {
         centerx = tempCnts[i].x;
@@ -243,7 +379,7 @@ cv::Mat findCenters(cv::Mat frame,
             countc++;
         }        
     }
-
+    */
     if (center_jump >= 4){
         
         int minx = 100000;
@@ -274,7 +410,9 @@ cv::Mat findCenters(cv::Mat frame,
         cv::Point p2 = cv::Point(maxx,miny);
         int currentDistance = sqrt(pow((p2.x - p1.x),2)+pow((p2.y - p1.y),2));
         //std::cout << " max " << maxdistance << " - " << " currentd " << currentDistance << std::endl;
-        if(maxdistance <= currentDistance){
+        if(maxdistance <= currentDistance+10){
+
+            //std::cout << "<=" << std::endl;
             int currentcenterx = 0.5*(p1.x + p2.x);
             int currentcentery = 0.5*(p1.y + p2.y);
             //std::cout << "cx " << currentcenterx << " cy " << currentcentery << " - " << "px " << prevcenterx << " py " << prevcentery << std::endl;
@@ -296,18 +434,19 @@ cv::Mat findCenters(cv::Mat frame,
             maxdistance = currentDistance;
         }
         else{
+            //std::cout << "else" << std::endl;
             for (int i = 0; i < 12; i++)
             {
                 centerx = tempCnts[i].x;
                 centery = tempCnts[i].y;
-
+                //std::cout << "i = " << i << std::endl;
                 predictions++;
                 pdCnts[i] = cv::Point(centerx, centery);
                 circle( result, cv::Point(centerx, centery), 2, cvScalar(0,0,255), 2, 8);
                 putText(result,std::to_string(i+1),cv::Point(centerx, centery),cv::FONT_ITALIC,0.8,color,2); 
             }
         }
-
+        
         //prevCenter = cv::Point(0+x,0+y);
       
     } 
@@ -355,16 +494,108 @@ cv::Mat findCenters(cv::Mat frame,
     }
     */
     
+    /*
     for(int i = 0;i< 11;i++){
         if ((pdCnts[i].x == 0 && pdCnts[i].y == 0) || (pdCnts[i+1].x == 0 && pdCnts[i+1].y == 0))
             continue;
         else
             cv::line(result,pdCnts[i],pdCnts[i+1],cv::Scalar(0,250,50),2);
     }
-    
+    */
     RpdCnts = pdCnts;
     prev = frame;
     countFrame++;
 
     return result;
+}
+
+void calcPointPosition(std::vector<cv::Point3f>& corners)
+{
+    corners.clear();
+    float squareSize = 4.8;
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            corners.push_back(cv::Point3f(float( j*squareSize ), float( i*squareSize ), 0));
+        }
+    }
+}
+bool Calibration(cv::Size imgSize, 
+                cv::Mat& cameraMatrix, 
+                cv::Mat& distCoeffs,
+                std::vector<std::vector<cv::Point2f>> imagePoints,
+                std::vector<cv::Mat>& rvecs,
+                std::vector<cv::Mat>& tvecs,
+                std::vector<float>& projectErrors,
+                double& totalAvgErr)
+{
+    cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+
+    cameraMatrix.at<double>(0,0) = 1.0;
+    distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
+
+    std::vector<std::vector<cv::Point3f>> objectPoints(1);
+
+    calcPointPosition(objectPoints[0]);
+    objectPoints.resize(imagePoints.size(),objectPoints[0]);
+
+    std::cout << "imagePoints = " << imagePoints.size() << std::endl;
+    std::cout << "objectPoints = " << objectPoints.size() << std::endl;
+
+    cv::InputArrayOfArrays OBJPOINT = objectPoints;
+
+    for (int i = 0; i < objectPoints.size(); i++)
+    {
+        std::cout << "i = " << i << " -> " << OBJPOINT.getMat(i).checkVector(3, CV_32F) << std::endl;
+    }
+    float rms = cv::calibrateCamera(objectPoints, 
+                                    imagePoints, 
+                                    imgSize, 
+                                    cameraMatrix,
+                                    distCoeffs, 
+                                    rvecs, 
+                                    tvecs, 
+                                    CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+    /*
+    if (release_object) {
+        cout << "New board corners: " << endl;
+        cout << newObjPoints[0] << endl;
+        cout << newObjPoints[s.boardSize.width - 1] << endl;
+        cout << newObjPoints[s.boardSize.width * (s.boardSize.height - 1)] << endl;
+        cout << newObjPoints.back() << endl;
+    }
+    */
+    std::cout << "Re-projection error reported by calibrateCamera: "<< rms << std::endl;
+
+    bool ok = cv::checkRange(cameraMatrix) && cv::checkRange(distCoeffs);
+    /*
+    totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
+                                             rvecs, tvecs, cameraMatrix, distCoeffs, reprojErrs);
+    */
+    return ok;
+}
+
+bool SaveParams(cv::Size imgSize, 
+                cv::Mat& cameraMatrix, 
+                cv::Mat& distCoeffs,
+                std::vector<std::vector<cv::Point2f>> imagePoints)
+{
+    std::vector<cv::Mat> rvecs;
+    std::vector<cv::Mat> tvecs;
+
+    std::vector<float> projectErrors;
+    std::vector<cv::Point3f> newObjectPoints;
+
+    double totalAvgErr = 0;
+
+    bool res = Calibration( imgSize,
+                            cameraMatrix,
+                            distCoeffs,
+                            imagePoints,
+                            rvecs,
+                            tvecs,
+                            projectErrors,
+                            totalAvgErr);
+    return res;
 }
