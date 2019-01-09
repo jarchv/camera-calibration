@@ -1,2 +1,2 @@
-main:
-		g++ main.cpp utils.cpp -std=c++11 -o out `pkg-config --cflags --libs opencv` -fopenmp
+funcOpencv:
+	g++ funcOpencv.cpp utils.cpp -std=c++11 -o chess `pkg-config --cflags --libs opencv` 

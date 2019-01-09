@@ -33,7 +33,6 @@ add_executable(out src/main.cpp)
 
 set_target_properties(out PROPERTIES 
                       LINKER_LANGUAGE CXX)
-
 target_link_libraries(out PRIVATE base ${OpenCV_LIBS})
 install(TARGETS out DESTINATION /usr/lib)
 
