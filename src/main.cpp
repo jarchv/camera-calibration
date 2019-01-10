@@ -4,6 +4,7 @@
 cv::Mat frame;
 cv::Mat bin;
 cv::Mat gray;
+cv::Mat view;
 
 cv::Mat contours_draw;
 cv::Mat result;
@@ -14,13 +15,14 @@ std::vector<cv::Point> RpdCnts;
 std::vector<cv::Point3i> PointsTracking;
 std::vector<std::vector<cv::Point>> contours;
 
-std::vector<cv::Point2f> pointBuf;
+
 std::vector<std::vector<cv::Point2f>> imagePoints;
 
 cv::Mat cameraMatrix;
 cv::Mat distCoeffs;
 
 cv::Size imgSize;
+double avr_error;
 int main(int argc, char** argv)
 {
     std::string filename = argv[1];
@@ -44,7 +46,10 @@ int main(int argc, char** argv)
         Template = cv::Mat(T_height*2 + 30, T_width*3 + 40, CV_8UC3, cv::Scalar(45,45,45));
         //usleep(10000);
         cap >> frame;
+        //view = frame.clone();
         imgSize = frame.size();
+
+
         if(frame.empty())
             break;
 
@@ -124,7 +129,7 @@ int main(int argc, char** argv)
                                 , cv::Point(1100, 540),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
 
 
-        cv::imshow("Template", Template);
+        
 
         //video.write(Template);
         char k = cv::waitKey(30);
@@ -133,25 +138,59 @@ int main(int argc, char** argv)
         
         else if ( k == 'c' || k == 'C') 
         {
-            std::cout << "Capturing image" << std::endl;
+            
             if (PointsTracking.size() == 12)
             {
+                //pointBuf.clear();
+                std::vector<cv::Point2f> pointBuf(12);
                 for (int i = 0; i < PointsTracking.size(); i++)
                 {
-                    pointBuf.push_back(cv::Point2f(PointsTracking[i].y, PointsTracking[i].z));          
+                    pointBuf[PointsTracking[i].x-1] = cv::Point2f(PointsTracking[i].y, PointsTracking[i].z);          
                 }
                 imagePoints.push_back(pointBuf);
+                std::cout << "Capturing image | current size = " << imagePoints.size() << std::endl;
             }
         }
 
-        if ( mode == CAPTURING && imagePoints.size() >= 10 )
+        if ( mode == CAPTURING && imagePoints.size() >= 20 )
         {
             std::cout << "run calibrarion ..." << std::endl;
-            bool result = SaveParams(imgSize,cameraMatrix,distCoeffs,imagePoints);
-            mode = CALIBRATED;
+            bool result = SaveParams(imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error);
+            
             std::cout << "Result = " << result << std::endl;
+
+            for (int im = 0; im < 3; im++)
+            {
+                for (int jm = 0; jm < 3; jm++)
+                {
+                    std::cout << cameraMatrix.at<double>(im,jm) << " ";
+                }
+                std::cout << std::endl;
+            }
+            mode = CALIBRATED;
         }
 
+        if ( mode == CALIBRATED)
+        {
+            cv::Mat view = frame.clone();
+            cv::Mat temp = view.clone();
+            cv::undistort(temp, view, cameraMatrix, distCoeffs);
+            Mat2Mat(view       , Template, 20 + T_height   ,     T_width + 20);
+
+            cv::putText(Template,"fx     : " + std::to_string(cameraMatrix.at<double>(0,0)), 
+                                  cv::Point(1100, 580),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
+            cv::putText(Template,"fy     : " + std::to_string(cameraMatrix.at<double>(1,1)), 
+                                  cv::Point(1100, 600),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
+            cv::putText(Template,"cx     : " + std::to_string(cameraMatrix.at<double>(0,2)), 
+                                  cv::Point(1100, 620),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
+            cv::putText(Template,"cy     : " + std::to_string(cameraMatrix.at<double>(1,2)), 
+                                  cv::Point(1100, 640),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
+            cv::putText(Template,"Avr Re-Proj. Error    : " + std::to_string(avr_error), 
+                                  cv::Point(1100, 680),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
+            //cv::imshow("Image View", view);
+        }
+
+        cv::imshow("Template", Template);
     }
 
     cap.release();

@@ -42,10 +42,12 @@ bool Calibration(cv::Size imgSize,
                 std::vector<cv::Mat>& rvecs,
                 std::vector<cv::Mat>& tvecs,
                 std::vector<float>& projectErrors,
-                double& totalAvgErr);
+                double& totalAvgErr,
+                double& avr);
                 
 bool SaveParams(cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
                 cv::Mat& distCoeffs,
-                std::vector<std::vector<cv::Point2f>> imagePoints);
+                std::vector<std::vector<cv::Point2f>> imagePoints,
+                double& avr);
 #endif

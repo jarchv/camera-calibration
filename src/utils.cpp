@@ -509,10 +509,37 @@ cv::Mat findCenters(cv::Mat frame,
     return result;
 }
 
+static double computeReprojectionErrors( const std::vector<std::vector<cv::Point3f> >& objectPoints,
+                                         const std::vector<std::vector<cv::Point2f> >& imagePoints,
+                                         const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
+                                         const cv::Mat& cameraMatrix , const cv::Mat& distCoeffs,
+                                         std::vector<float>& perViewErrors)
+{
+    std::vector<cv::Point2f> imagePoints2;
+    int i, totalPoints = 0;
+    double totalErr = 0, err;
+    perViewErrors.resize(objectPoints.size());
+
+    for( i = 0; i < (int)objectPoints.size(); ++i )
+    {
+        projectPoints( cv::Mat(objectPoints[i]), rvecs[i], tvecs[i], cameraMatrix,
+                       distCoeffs, imagePoints2);
+        err = cv::norm(cv::Mat(imagePoints[i]), cv::Mat(imagePoints2), CV_L2);
+
+        int n = (int)objectPoints[i].size();
+        perViewErrors[i] = (float) std::sqrt(err*err/n);
+        totalErr        += err*err;
+        totalPoints     += n;
+    }
+
+    return std::sqrt(totalErr/totalPoints);
+}
+
 void calcPointPosition(std::vector<cv::Point3f>& corners)
 {
     corners.clear();
-    float squareSize = 4.8;
+    float squareSize = 48.0;
+    
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 4; j++)
@@ -520,6 +547,13 @@ void calcPointPosition(std::vector<cv::Point3f>& corners)
             corners.push_back(cv::Point3f(float( j*squareSize ), float( i*squareSize ), 0));
         }
     }
+    
+   /*
+   for (int i = 0; i < 12; i++)
+   {
+       corners.push_back(cv::Point3f(float( (i/4)*squareSize ), float( (i%4)*squareSize ), 0));
+   }
+   */
 }
 bool Calibration(cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
@@ -528,7 +562,8 @@ bool Calibration(cv::Size imgSize,
                 std::vector<cv::Mat>& rvecs,
                 std::vector<cv::Mat>& tvecs,
                 std::vector<float>& projectErrors,
-                double& totalAvgErr)
+                double& totalAvgErr,
+                double& avr)
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
@@ -539,17 +574,42 @@ bool Calibration(cv::Size imgSize,
 
     calcPointPosition(objectPoints[0]);
     objectPoints.resize(imagePoints.size(),objectPoints[0]);
-
-    std::cout << "imagePoints = " << imagePoints.size() << std::endl;
-    std::cout << "objectPoints = " << objectPoints.size() << std::endl;
-
-    cv::InputArrayOfArrays OBJPOINT = objectPoints;
-
+    
+    /*
     for (int i = 0; i < objectPoints.size(); i++)
     {
-        std::cout << "i = " << i << " -> " << OBJPOINT.getMat(i).checkVector(3, CV_32F) << std::endl;
+        std::cout << "i = "<< i << ", imagePoints = "  << imagePoints[i].size() << std::endl;
+        std::cout << "i = "<< i << ", objectPoints = "  << objectPoints[i].size() << std::endl;
     }
-    float rms = cv::calibrateCamera(objectPoints, 
+    */
+
+    //int nimages = (int)((cv::InputArrayOfArrays)objectPoints).total();
+
+    //std::cout << "nimages = " << nimages << std::endl;
+    //std::cout << "points  = " << (int)((cv::InputArrayOfArrays)imagePoints).total() << std::endl;
+    
+    /*
+    for (int i = 0; i < objectPoints.size(); i++)
+    {
+        for (int j = 0; j < objectPoints[i].size();j++)
+        {
+            std::cout << "cap = " << i;
+            std::cout << ", point = " << j << " -> ";
+            std::cout << "x = " << objectPoints[i][j].x;
+            std::cout << "\t, y = " << objectPoints[i][j].y; 
+            std::cout << "\t, z = " << objectPoints[i][j].z  << std::endl; 
+        }
+    }
+
+    */
+
+    cv::InputArrayOfArrays objectPoints_ = (cv::InputArrayOfArrays)objectPoints;
+    cv::InputArrayOfArrays imagePoints_  = (cv::InputArrayOfArrays)imagePoints;
+    /*
+    std::cout << "nimages = " << objectPoints_.total() << std::endl;
+    std::cout << "points  = " << imagePoints_.total()  << std::endl;
+    */
+    float rms = calibrateCamera(objectPoints, 
                                     imagePoints, 
                                     imgSize, 
                                     cameraMatrix,
@@ -557,6 +617,10 @@ bool Calibration(cv::Size imgSize,
                                     rvecs, 
                                     tvecs, 
                                     CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+
+    rms /= objectPoints.size();
+
+    avr = rms;
     /*
     if (release_object) {
         cout << "New board corners: " << endl;
@@ -569,17 +633,19 @@ bool Calibration(cv::Size imgSize,
     std::cout << "Re-projection error reported by calibrateCamera: "<< rms << std::endl;
 
     bool ok = cv::checkRange(cameraMatrix) && cv::checkRange(distCoeffs);
-    /*
+    
     totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
-                                             rvecs, tvecs, cameraMatrix, distCoeffs, reprojErrs);
-    */
+                                             rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
+    
+    std::cout << "Avg_Reprojection_Error" << totalAvgErr << std::endl;
     return ok;
 }
 
 bool SaveParams(cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
                 cv::Mat& distCoeffs,
-                std::vector<std::vector<cv::Point2f>> imagePoints)
+                std::vector<std::vector<cv::Point2f>> imagePoints,
+                double& avr)
 {
     std::vector<cv::Mat> rvecs;
     std::vector<cv::Mat> tvecs;
@@ -596,6 +662,7 @@ bool SaveParams(cv::Size imgSize,
                             rvecs,
                             tvecs,
                             projectErrors,
-                            totalAvgErr);
+                            totalAvgErr,
+                            avr);
     return res;
 }
