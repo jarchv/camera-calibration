@@ -47,8 +47,8 @@ void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
 
     //int S = MAX(nRows, nCols)/8;
     int S = MAX(nRows, nCols)/8;
-    double T = 0.08;
-    //double T = 0.15;
+    //double T = 0.08;
+    double T = 0.15;
     // perform thresholding
     int s2 = S/2;
     int x1, y1, x2, y2, count, sum;
@@ -127,7 +127,7 @@ int PointsInside(std::vector<cv::Point>& P, std::vector<cv::Point>& pIns,float m
     return count;
 }
 
-std::vector<std::vector<cv::Point>> Points2RectOfPoints(std::vector<cv::Point> allPoints2D)
+std::vector<std::vector<cv::Point>> Points2RectOfPoints(std::vector<cv::Point> allPoints2D, cv::Size BoardSize)
 {
     std::vector<cv::Point> tempPoints(allPoints2D.size());
 
@@ -159,8 +159,8 @@ std::vector<std::vector<cv::Point>> Points2RectOfPoints(std::vector<cv::Point> a
                 
                 pIns.clear();
 
-                npoints = PointsInside(tempPoints, pIns, m, b, 5);
-                if (npoints == 5)
+                npoints = PointsInside(tempPoints, pIns, m, b, BoardSize.width);
+                if (npoints == BoardSize.width)
                 {
                     RectOfPoinst.push_back(pIns);
                 }
@@ -178,7 +178,7 @@ void SortingPoints(std::vector<cv::Point>  tempCnts, std::vector<cv::Point>& nex
 {
     if (tempCnts.size() == (BoardSize.width * BoardSize.height))
     {
-        std::vector<std::vector<cv::Point>> RofP = Points2RectOfPoints(tempCnts);
+        std::vector<std::vector<cv::Point>> RofP = Points2RectOfPoints(tempCnts,BoardSize);
         std::vector<std::vector<int>> Ypos;
 
         std::vector<cv::Point> minYVec;
@@ -329,7 +329,7 @@ std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRe
     int centerx;
     int centery;
     float diagtemp;
-    float errormaxDiam = 1.5;
+    float errormaxDiam = 3.5;
     float errormax = 3; 
     float dist;
     
@@ -427,6 +427,10 @@ cv::Mat findCenters(cv::Mat frame,
 
     tempCnts    = findConcentricCenters(minRect, centers, diag, contours_filtered);
     
+    for(int i=0; i < tempCnts.size(); i++)
+    {
+        //scv::circle(result, cv::Point(tempCnts[i].x, tempCnts[i].y), 2, cv::Scalar(0,255,0), 2, 8);  
+    }
     
     bool Cjump = trancking( tempCnts, 
                             OldPoints,
@@ -436,8 +440,12 @@ cv::Mat findCenters(cv::Mat frame,
     if (Cjump == true && tempCnts.size() != 0)
     {
         std::vector<cv::Point> newPoints;
-        SortingPoints(tempCnts, newPoints, BoardSize);
 
+        SortingPoints(tempCnts, newPoints, BoardSize);
+        for(int i=0; i < tempCnts.size(); i++)
+        {
+            cv::circle(result, cv::Point(tempCnts[i].x, tempCnts[i].y), 2, cv::Scalar(0,255,0), 2, 8);  
+        }
         if (newPoints.size() == (BoardSize.width * BoardSize.height))
         {
             OldPoints = newPoints;
@@ -450,6 +458,7 @@ cv::Mat findCenters(cv::Mat frame,
 
     else {
         OldPoints = newPoints;
+
     }
 
     countFrame++;

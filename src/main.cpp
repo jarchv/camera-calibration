@@ -22,7 +22,7 @@ cv::Mat cameraMatrix;
 cv::Mat distCoeffs;
 
 cv::Size imgSize;
-cv::Size BoardSize(5,4);
+cv::Size BoardSize(4,3);
 
 double avr_error;
 
@@ -76,10 +76,12 @@ int main(int argc, char** argv)
         accuracy = 1 - erros/((float)countFrame * ground_truth);
 
         if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
+        {
             drawLines(result, SortedPoints);
-
+        }
         cv::cvtColor(gray       , gray      , cv::COLOR_GRAY2BGR);
         cv::cvtColor(bin        , bin       , cv::COLOR_GRAY2BGR);
+        
         
         for (int ic = 0; ic < contours.size(); ic++)
         {
@@ -143,7 +145,7 @@ int main(int argc, char** argv)
         {
             if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
             {
-                std::vector<cv::Point2f> pointBuf(20);
+                std::vector<cv::Point2f> pointBuf(BoardSize.width * BoardSize.height);
                 for (int i = 0; i < SortedPoints.size(); i++)
                 {
                     pointBuf[i] = cv::Point2f(SortedPoints[i].x, SortedPoints[i].y);          
@@ -206,14 +208,14 @@ int main(int argc, char** argv)
                 std::vector<cv::Point>   ObjectPointsProjected2Image(4);
 
                 ObjectPointsModel[0] = PointsPositions[0];
-                ObjectPointsModel[1] = PointsPositions[6];
+                ObjectPointsModel[1] = PointsPositions[BoardSize.width + 1];
                 ObjectPointsModel[2] = PointsPositions[1];
-                ObjectPointsModel[3] = PointsPositions[5];
+                ObjectPointsModel[3] = PointsPositions[BoardSize.width];
 
                 imagePointsModel[0]  = cv::Point2f((float)SortedPoints[0].x,(float)SortedPoints[0].y);
-                imagePointsModel[1]  = cv::Point2f((float)SortedPoints[6].x,(float)SortedPoints[6].y);
+                imagePointsModel[1]  = cv::Point2f((float)SortedPoints[BoardSize.width + 1].x,(float)SortedPoints[BoardSize.width + 1].y);
                 imagePointsModel[2]  = cv::Point2f((float)SortedPoints[1].x,(float)SortedPoints[1].y);
-                imagePointsModel[3]  = cv::Point2f((float)SortedPoints[5].x,(float)SortedPoints[5].y);                
+                imagePointsModel[3]  = cv::Point2f((float)SortedPoints[BoardSize.width].x,(float)SortedPoints[BoardSize.width].y);                
 
                 cv::Mat rvec(3,1,cv::DataType<double>::type);
                 cv::Mat tvec(3,1,cv::DataType<double>::type);
