@@ -11,8 +11,9 @@ cv::Mat result;
 cv::Mat Template;
 
 clock_t begin_time;
-std::vector<cv::Point> RpdCnts;
+std::vector<cv::Point> OldPoints;
 std::vector<cv::Point3i> PointsTracking;
+std::vector<cv::Point2i> SortedPoints;
 std::vector<std::vector<cv::Point>> contours;
 
 
@@ -22,11 +23,15 @@ cv::Mat cameraMatrix;
 cv::Mat distCoeffs;
 
 cv::Size imgSize;
+cv::Size BoardSize(5,4);
+
 double avr_error;
 int main(int argc, char** argv)
 {
     std::string filename = argv[1];
     cv::VideoCapture cap("../files/"+filename);
+
+    bool newF = true;
 
     if (!cap.isOpened())
     {
@@ -44,21 +49,32 @@ int main(int argc, char** argv)
     for(;;)
     {
         Template = cv::Mat(T_height*2 + 30, T_width*3 + 40, CV_8UC3, cv::Scalar(45,45,45));
-        //usleep(10000);
+        
         cap >> frame;
         //view = frame.clone();
         imgSize = frame.size();
-
-
+        /*
+        int Td = 75;
+        if (countFrame < Td && newF == true)
+        {
+            countFrame++;
+            continue;
+        }
+        else if (countFrame >= Td && newF == true) {
+            countFrame = 0;
+            newF = false;
+        }
+        */
+        usleep(10000);
         if(frame.empty())
             break;
 
         begin_time = clock();
 
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-        cv::GaussianBlur(gray, gray, cv::Size(3,3), 0, 0);  
+        cv::GaussianBlur(gray, gray, cv::Size(5,5), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, RpdCnts, PointsTracking, predict);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, OldPoints, BoardSize);
 
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
@@ -66,18 +82,16 @@ int main(int argc, char** argv)
 
         erros += abs(predict - ground_truth);
         accuracy = 1 - erros/((float)countFrame * ground_truth);
-        //std::cout << "time per frame is " << time_elapsed << "pred :" << accuracy <<std::endl;
-        //std::cout << "osd " <<  PointsTracking.size() << std::endl;
-        
-        for (int i = 0; i < PointsTracking.size(); i++)
+
+        for (int i = 0; i < OldPoints.size(); i++)
         {
-            cv::circle(result, cv::Point(PointsTracking[i].y, PointsTracking[i].z), 2, cv::Scalar(0,0,255), 2, 8);  
-            putText(result,std::to_string(PointsTracking[i].x),cv::Point(PointsTracking[i].y, PointsTracking[i].z),cv::FONT_ITALIC,0.8,color,2);             
+            cv::circle(result, cv::Point(OldPoints[i].x, OldPoints[i].y), 2, cv::Scalar(0,0,255), 2, 8);  
+            putText(result,std::to_string(i),cv::Point(OldPoints[i].x, OldPoints[i].y),cv::FONT_ITALIC,0.8,color,2);           
         }
-        
+
         cv::cvtColor(gray       , gray      , cv::COLOR_GRAY2BGR);
         cv::cvtColor(bin        , bin       , cv::COLOR_GRAY2BGR);
-        //cv::cvtColor(contours   , contours  , cv::COLOR_GRAY2BGR);
+        
         for (int ic = 0; ic < contours.size(); ic++)
         {
             cv::Scalar color = cv::Scalar(55,55,255);
@@ -138,11 +152,9 @@ int main(int argc, char** argv)
         
         else if ( k == 'c' || k == 'C') 
         {
-            
-            if (PointsTracking.size() == 12)
+            if (PointsTracking.size() == 20)
             {
-                //pointBuf.clear();
-                std::vector<cv::Point2f> pointBuf(12);
+                std::vector<cv::Point2f> pointBuf(20);
                 for (int i = 0; i < PointsTracking.size(); i++)
                 {
                     pointBuf[PointsTracking[i].x-1] = cv::Point2f(PointsTracking[i].y, PointsTracking[i].z);          
@@ -152,13 +164,13 @@ int main(int argc, char** argv)
             }
         }
 
-        if ( mode == CAPTURING && imagePoints.size() >= 20 )
+        if ( mode == CAPTURING && imagePoints.size() >= 60 )
         {
-            std::cout << "run calibrarion ..." << std::endl;
+            std::cout << "\nrun calibrarion ..." << std::endl;
             bool result = SaveParams(imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error);
             
             std::cout << "Result = " << result << std::endl;
-
+            std::cout << "\nCalibration Matrix:\n " << result << std::endl;
             for (int im = 0; im < 3; im++)
             {
                 for (int jm = 0; jm < 3; jm++)

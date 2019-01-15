@@ -19,9 +19,8 @@ cv::Mat findCenters(cv::Mat frame,
                     cv::Mat& contours_draw,
                     std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
-                    std::vector<cv::Point>& RpdCnts,
-                    std::vector<cv::Point3i>& PointsTracking,
-                    int& predictions);
+                    std::vector<cv::Point>& OldPoints,
+                    cv::Size BoardSize);
 
 void thresholdIntegral( cv::Mat &inputMat, 
                         cv::Mat &outputMat);

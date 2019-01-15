@@ -6,7 +6,7 @@ float time_avr      = 0;
 float time_elapsed;
 
 int predict;
-float ground_truth = 12;
+float ground_truth = 20;
 float accuracy; 
 float erros=0;
 
