@@ -14,6 +14,15 @@ void Mat2Mat(cv::Mat& src, cv::Mat& dst, int x0, int y0)
     }
 }
 
+void drawLines(cv::Mat& img, std::vector<cv::Point> SortedPoints)
+{
+    cv::Scalar color = cv::Scalar( 255, 250, 50);
+    for (int ip = 0; ip < SortedPoints.size(); ip++)
+    {
+        cv::circle(img, cv::Point(SortedPoints[ip].x, SortedPoints[ip].y), 2, cv::Scalar(0,0,255), 2, 8);  
+        putText(img,std::to_string(ip+1),cv::Point(SortedPoints[ip].x, SortedPoints[ip].y),cv::FONT_ITALIC,0.8,color,2);           
+    }
+}
 void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
 {
     // accept only char type matrices
@@ -242,8 +251,6 @@ void SortingPoints(std::vector<cv::Point>  tempCnts, std::vector<cv::Point>& nex
                 nextCenters.push_back(SortedRofP[SortedRofP.size() - ir - 1][iP]);
             }
         }
-
-        std::cout << "Point Inside" << nextCenters[0] << std::endl;
     }
 }
 int trancking(  std::vector<cv::Point>  tempCnts, 
@@ -481,16 +488,19 @@ static double computeReprojectionErrors( const std::vector<std::vector<cv::Point
     return std::sqrt(totalErr/totalPoints);
 }
 
-void calcPointPosition(std::vector<cv::Point3f>& corners)
+void calcPointPosition(std::vector<cv::Point3f>& corners, cv::Size BoardSize)
 {
     corners.clear();
     float squareSize = 45.7;
     
-    for (int i = 0; i < 4; i++)
+    std::cout << "BoardSize.width  = " << BoardSize.width  << std::endl;
+    std::cout << "BoardSize.height = " << BoardSize.height << std::endl;
+    
+    for (int i = 0; i < BoardSize.height; i++)
     {
-        for (int j = 0; j < 5; j++)
+        for (int j = 0; j < BoardSize.width; j++)
         {
-            corners.push_back(cv::Point3f(float( (4-j)*squareSize ), float( i*squareSize ), 0));
+            corners.push_back(cv::Point3f(float( j*squareSize ), float( i*squareSize ), 0));
         }
     }
 }
@@ -502,7 +512,9 @@ bool Calibration(cv::Size imgSize,
                 std::vector<cv::Mat>& tvecs,
                 std::vector<float>& projectErrors,
                 double& totalAvgErr,
-                double& avr)
+                double& avr,
+                cv::Size BoardSize,
+                std::vector<cv::Point3f>& newObjectPoints)
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
@@ -511,11 +523,13 @@ bool Calibration(cv::Size imgSize,
 
     std::vector<std::vector<cv::Point3f>> objectPoints(1);
 
-    calcPointPosition(objectPoints[0]);
+    calcPointPosition(objectPoints[0], BoardSize);
     objectPoints.resize(imagePoints.size(),objectPoints[0]);
 
-    cv::InputArrayOfArrays objectPoints_ = (cv::InputArrayOfArrays)objectPoints;
-    cv::InputArrayOfArrays imagePoints_  = (cv::InputArrayOfArrays)imagePoints;
+    //cv::InputArrayOfArrays objectPoints_ = (cv::InputArrayOfArrays)objectPoints;
+    //cv::InputArrayOfArrays imagePoints_  = (cv::InputArrayOfArrays)imagePoints;
+
+    newObjectPoints = objectPoints[0];
 
     float rms = calibrateCamera(objectPoints, 
                                     imagePoints, 
@@ -534,22 +548,23 @@ bool Calibration(cv::Size imgSize,
     
     totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
                                              rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
-    
     std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
     return ok;
 }
 
-bool SaveParams(cv::Size imgSize, 
+bool GetParams(cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
                 cv::Mat& distCoeffs,
                 std::vector<std::vector<cv::Point2f>> imagePoints,
-                double& avr)
+                double& avr,
+                cv::Size BoardSize,
+                std::vector<cv::Point3f>& newObjectPoints)
 {
     std::vector<cv::Mat> rvecs;
     std::vector<cv::Mat> tvecs;
 
     std::vector<float> projectErrors;
-    std::vector<cv::Point3f> newObjectPoints;
+    
 
     double totalAvgErr = 0;
 
@@ -561,6 +576,8 @@ bool SaveParams(cv::Size imgSize,
                             tvecs,
                             projectErrors,
                             totalAvgErr,
-                            avr);
+                            avr,
+                            BoardSize,
+                            newObjectPoints);
     return res;
 }

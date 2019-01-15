@@ -11,9 +11,8 @@ cv::Mat result;
 cv::Mat Template;
 
 clock_t begin_time;
-std::vector<cv::Point> OldPoints;
+std::vector<cv::Point> SortedPoints;
 std::vector<cv::Point3i> PointsTracking;
-std::vector<cv::Point2i> SortedPoints;
 std::vector<std::vector<cv::Point>> contours;
 
 
@@ -26,6 +25,9 @@ cv::Size imgSize;
 cv::Size BoardSize(5,4);
 
 double avr_error;
+
+std::vector<cv::Point3f> PointsPositions;
+
 int main(int argc, char** argv)
 {
     std::string filename = argv[1];
@@ -40,31 +42,19 @@ int main(int argc, char** argv)
     }
 
     cap >> frame;
-
+    
     T_width  = (int)frame.cols*0.8;
     T_height = (int)frame.rows*0.8;
     
     //cv::VideoWriter video("../files/outcpp.avi",CV_FOURCC('D','I','V','3'),30, cv::Size( T_width*3 + 40,T_height*2 + 30)); 
-    cv::Scalar color = cv::Scalar( 255, 250, 50);
+    
     for(;;)
     {
         Template = cv::Mat(T_height*2 + 30, T_width*3 + 40, CV_8UC3, cv::Scalar(45,45,45));
         
         cap >> frame;
-        //view = frame.clone();
+        cv::Mat toModel = frame.clone();
         imgSize = frame.size();
-        /*
-        int Td = 75;
-        if (countFrame < Td && newF == true)
-        {
-            countFrame++;
-            continue;
-        }
-        else if (countFrame >= Td && newF == true) {
-            countFrame = 0;
-            newF = false;
-        }
-        */
         usleep(10000);
         if(frame.empty())
             break;
@@ -74,20 +64,19 @@ int main(int argc, char** argv)
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray, gray, cv::Size(5,5), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, OldPoints, BoardSize);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize);
 
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
         time_elapsed = time_avr/countFrame;
 
-        erros += abs(predict - ground_truth);
+        if (SortedPoints.size() != (BoardSize.width * BoardSize.height))
+            erros++;
+    
         accuracy = 1 - erros/((float)countFrame * ground_truth);
 
-        for (int i = 0; i < OldPoints.size(); i++)
-        {
-            cv::circle(result, cv::Point(OldPoints[i].x, OldPoints[i].y), 2, cv::Scalar(0,0,255), 2, 8);  
-            putText(result,std::to_string(i),cv::Point(OldPoints[i].x, OldPoints[i].y),cv::FONT_ITALIC,0.8,color,2);           
-        }
+        if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
+            drawLines(result, SortedPoints);
 
         cv::cvtColor(gray       , gray      , cv::COLOR_GRAY2BGR);
         cv::cvtColor(bin        , bin       , cv::COLOR_GRAY2BGR);
@@ -152,25 +141,26 @@ int main(int argc, char** argv)
         
         else if ( k == 'c' || k == 'C') 
         {
-            if (PointsTracking.size() == 20)
+            if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
             {
                 std::vector<cv::Point2f> pointBuf(20);
-                for (int i = 0; i < PointsTracking.size(); i++)
+                for (int i = 0; i < SortedPoints.size(); i++)
                 {
-                    pointBuf[PointsTracking[i].x-1] = cv::Point2f(PointsTracking[i].y, PointsTracking[i].z);          
+                    pointBuf[i] = cv::Point2f(SortedPoints[i].x, SortedPoints[i].y);          
                 }
                 imagePoints.push_back(pointBuf);
                 std::cout << "Capturing image | current size = " << imagePoints.size() << std::endl;
             }
         }
 
-        if ( mode == CAPTURING && imagePoints.size() >= 60 )
+        if ( mode == CAPTURING && imagePoints.size() >= 14 )
         {
             std::cout << "\nrun calibrarion ..." << std::endl;
-            bool result = SaveParams(imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error);
+            bool result = GetParams(imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error,BoardSize,PointsPositions);
             
             std::cout << "Result = " << result << std::endl;
-            std::cout << "\nCalibration Matrix:\n " << result << std::endl;
+            std::cout << "\nCalibration Matrix:  " << result << "\n"<<std::endl;
+
             for (int im = 0; im < 3; im++)
             {
                 for (int jm = 0; jm < 3; jm++)
@@ -184,11 +174,19 @@ int main(int argc, char** argv)
 
         if ( mode == CALIBRATED)
         {
+            /*
             cv::Mat view = frame.clone();
             cv::Mat temp = view.clone();
-            cv::undistort(temp, view, cameraMatrix, distCoeffs);
-            Mat2Mat(view       , Template, 20 + T_height   ,     T_width + 20);
 
+
+            cv::undistort(temp, view, cameraMatrix, distCoeffs);
+            */
+            cv::Mat view = toModel.clone();
+            cv::Mat temp = view.clone();
+
+            cv::undistort(temp, view, cameraMatrix, distCoeffs);
+
+            
             cv::putText(Template,"fx     : " + std::to_string(cameraMatrix.at<double>(0,0)), 
                                   cv::Point(1100, 580),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
             cv::putText(Template,"fy     : " + std::to_string(cameraMatrix.at<double>(1,1)), 
@@ -199,7 +197,57 @@ int main(int argc, char** argv)
                                   cv::Point(1100, 640),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
             cv::putText(Template,"Avr Re-Proj. Error    : " + std::to_string(avr_error), 
                                   cv::Point(1100, 680),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
-            //cv::imshow("Image View", view);
+            
+            if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
+            {
+                std::vector<cv::Point3f> ObjectPointsModel(4);
+                std::vector<cv::Point2f> imagePointsModel(4);
+                std::vector<cv::Point2f> ObjectPointsProjected;
+                std::vector<cv::Point>   ObjectPointsProjected2Image(4);
+
+                ObjectPointsModel[0] = PointsPositions[0];
+                ObjectPointsModel[1] = PointsPositions[6];
+                ObjectPointsModel[2] = PointsPositions[1];
+                ObjectPointsModel[3] = PointsPositions[5];
+
+                imagePointsModel[0]  = cv::Point2f((float)SortedPoints[0].x,(float)SortedPoints[0].y);
+                imagePointsModel[1]  = cv::Point2f((float)SortedPoints[6].x,(float)SortedPoints[6].y);
+                imagePointsModel[2]  = cv::Point2f((float)SortedPoints[1].x,(float)SortedPoints[1].y);
+                imagePointsModel[3]  = cv::Point2f((float)SortedPoints[5].x,(float)SortedPoints[5].y);                
+
+                cv::Mat rvec(3,1,cv::DataType<double>::type);
+                cv::Mat tvec(3,1,cv::DataType<double>::type);
+                
+                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec);
+
+
+                ObjectPointsModel.push_back(cv::Point3f(0.0,0.0,45.7));
+                cv::projectPoints(ObjectPointsModel, rvec, tvec, cameraMatrix, distCoeffs, ObjectPointsProjected);
+
+                bool neg = false;
+                for(int i = 0; i < ObjectPointsProjected.size(); i++)
+                {
+                    //std::cout << ObjectPointsProjected[i] << std::endl;
+                    if (ObjectPointsProjected[i].x < 0 || ObjectPointsProjected[i].y < 0 )
+                    {
+                        neg = true;
+                        break;
+                    }
+                    ObjectPointsProjected2Image[i] = cv::Point((int)ObjectPointsProjected[i].x, (int)ObjectPointsProjected[i].y);
+                    //std::cout << ObjectPointsProjected2Image[i] << std::endl;
+                }
+
+                if (neg == false)
+                {
+                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[3], cv::Scalar(255,0,0), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[2], cv::Scalar(0,0,255), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[4], cv::Scalar(0,255,0), 4, 8);
+                }
+
+            }
+            cv::resize(view       , view        , cv::Size(T_width, T_height));
+            Mat2Mat(view       , Template, 20 + T_height   ,     T_width*2 + 30);
+
         }
 
         cv::imshow("Template", Template);

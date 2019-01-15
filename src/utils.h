@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <iostream>
 
+void drawLines(cv::Mat& img, std::vector<cv::Point> SortedPoints);
 bool isIncluded(std::vector<cv::Point> X,
                 cv::Point Pt);
 
@@ -32,7 +33,8 @@ std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRe
                             int contours_count);
 
 
-void calcPointPosition(std::vector<cv::Point3f>& corners);
+void calcPointPosition(std::vector<cv::Point3f>& corners, 
+                       cv::Size BoardSize);
 
 bool Calibration(cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
@@ -42,11 +44,15 @@ bool Calibration(cv::Size imgSize,
                 std::vector<cv::Mat>& tvecs,
                 std::vector<float>& projectErrors,
                 double& totalAvgErr,
-                double& avr);
+                double& avr,
+                cv::Size BoardSize,
+                std::vector<cv::Point3f>& newObjectPoints);
                 
-bool SaveParams(cv::Size imgSize, 
+bool GetParams(cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
                 cv::Mat& distCoeffs,
                 std::vector<std::vector<cv::Point2f>> imagePoints,
-                double& avr);
+                double& avr,
+                cv::Size BoardSizes,
+                std::vector<cv::Point3f>& newObjectPoints);
 #endif
