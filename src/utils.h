@@ -21,7 +21,8 @@ cv::Mat findCenters(cv::Mat frame,
                     std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& OldPoints,
-                    cv::Size BoardSize);
+                    cv::Size BoardSize,
+                    double T);
 
 void thresholdIntegral( cv::Mat &inputMat, 
                         cv::Mat &outputMat);
@@ -48,7 +49,8 @@ bool Calibration(cv::Size imgSize,
                 cv::Size BoardSize,
                 std::vector<cv::Point3f>& newObjectPoints);
                 
-bool GetParams(cv::Size imgSize, 
+bool GetParams( std::vector<cv::Mat> imgsToCalib,
+                cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
                 cv::Mat& distCoeffs,
                 std::vector<std::vector<cv::Point2f>> imagePoints,

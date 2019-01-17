@@ -23,7 +23,7 @@ void drawLines(cv::Mat& img, std::vector<cv::Point> SortedPoints)
         putText(img,std::to_string(ip+1),cv::Point(SortedPoints[ip].x, SortedPoints[ip].y),cv::FONT_ITALIC,0.8,color,2);           
     }
 }
-void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
+void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat, double T)
 {
     // accept only char type matrices
     CV_Assert(!inputMat.empty());
@@ -48,7 +48,7 @@ void thresholdIntegral(cv::Mat &inputMat, cv::Mat &outputMat)
     //int S = MAX(nRows, nCols)/8;
     int S = MAX(nRows, nCols)/8;
     //double T = 0.08;
-    double T = 0.15;
+    //double T = 0.15;
     // perform thresholding
     int s2 = S/2;
     int x1, y1, x2, y2, count, sum;
@@ -252,6 +252,10 @@ void SortingPoints(std::vector<cv::Point>  tempCnts, std::vector<cv::Point>& nex
             }
         }
     }
+    else 
+    {
+        nextCenters.clear();
+    }
 }
 int trancking(  std::vector<cv::Point>  tempCnts, 
                 std::vector<cv::Point>  prevCenters,
@@ -373,7 +377,8 @@ cv::Mat findCenters(cv::Mat frame,
                     std::vector<std::vector<cv::Point>>& contours,
                     int& countFrame,
                     std::vector<cv::Point>& OldPoints,
-                    cv::Size BoardSize)
+                    cv::Size BoardSize,
+                    double T)
 {
     int prevcenterx = 0;
     int prevcentery = 0;
@@ -392,7 +397,7 @@ cv::Mat findCenters(cv::Mat frame,
     int cb              = 0;
 
     bin = cv::Mat::zeros(gray.size(), CV_8UC1);
-    thresholdIntegral(gray,bin);
+    thresholdIntegral(gray,bin, T);
 
     bin.copyTo(contours_draw);
     cv::cvtColor(contours_draw, contours_draw, CV_GRAY2RGB);
@@ -426,26 +431,28 @@ cv::Mat findCenters(cv::Mat frame,
     int countc=0;
 
     tempCnts    = findConcentricCenters(minRect, centers, diag, contours_filtered);
-    
+
     for(int i=0; i < tempCnts.size(); i++)
     {
-        //scv::circle(result, cv::Point(tempCnts[i].x, tempCnts[i].y), 2, cv::Scalar(0,255,0), 2, 8);  
+        cv::circle(result, cv::Point(tempCnts[i].x, tempCnts[i].y), 2, cv::Scalar(0,255,0), 2, 8);  
     }
-    
+
     bool Cjump = trancking( tempCnts, 
                             OldPoints,
                             newPoints,
                             countFrame);   
     
-    if (Cjump == true && tempCnts.size() != 0)
+    if (Cjump == true)
     {
+        if (tempCnts.size() < (BoardSize.width * BoardSize.height))
+        {
+            OldPoints.clear();
+            return result;
+        }
         std::vector<cv::Point> newPoints;
 
         SortingPoints(tempCnts, newPoints, BoardSize);
-        for(int i=0; i < tempCnts.size(); i++)
-        {
-            cv::circle(result, cv::Point(tempCnts[i].x, tempCnts[i].y), 2, cv::Scalar(0,255,0), 2, 8);  
-        }
+
         if (newPoints.size() == (BoardSize.width * BoardSize.height))
         {
             OldPoints = newPoints;
@@ -458,7 +465,6 @@ cv::Mat findCenters(cv::Mat frame,
 
     else {
         OldPoints = newPoints;
-
     }
 
     countFrame++;
@@ -471,6 +477,7 @@ cv::Mat findCenters(cv::Mat frame,
 * CALIBRATION
 * ===============================================================================================================
 */
+
 static double computeReprojectionErrors( const std::vector<std::vector<cv::Point3f> >& objectPoints,
                                          const std::vector<std::vector<cv::Point2f> >& imagePoints,
                                          const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
@@ -497,10 +504,142 @@ static double computeReprojectionErrors( const std::vector<std::vector<cv::Point
     return std::sqrt(totalErr/totalPoints);
 }
 
+
+void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
+                         std::vector<cv::Point3f> objectPoints,
+                         std::vector<std::vector<cv::Point2f>> imagePoints,
+                         cv::Mat& cameraMatrix , cv::Mat& distCoeffs,
+                         std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
+                         cv::Size BoardSize )
+{
+    std::vector<std::vector<cv::Point3f>> NewObjectPointsModel;
+
+    std::vector<std::vector<cv::Point2f>> ObjectPoints2D;
+    std::vector<std::vector<cv::Point2f>> SORTimagetPoints;
+    std::vector<cv::Point2f> objectP;
+    std::vector<cv::Point2f> SORTP;
+
+    std::vector<std::vector<cv::Point2f>> imagePointsReProyected(imagePoints.size());
+    cv::Mat dst;
+
+    int F = BoardSize.width * BoardSize.height - 1;
+
+    float BIAS = 200;
+    for(int i = 0; i < imagePoints.size(); i++)
+    {
+        objectP.clear();
+        SORTP.clear();
+        objectP.push_back(cv::Point2f(objectPoints[0].x + BIAS, objectPoints[0].y + BIAS)     );
+        objectP.push_back(cv::Point2f(objectPoints[BoardSize.width + 1].x + BIAS, objectPoints[BoardSize.width + 1].y + BIAS)                   );
+        objectP.push_back(cv::Point2f(objectPoints[1].x + BIAS, objectPoints[1].y + BIAS) );
+        objectP.push_back(cv::Point2f(objectPoints[BoardSize.width].x + BIAS, objectPoints[BoardSize.width].y + BIAS)                   );
+
+        SORTP.push_back(imagePoints[i][0]);
+        SORTP.push_back(imagePoints[i][BoardSize.width + 1]);
+        SORTP.push_back(imagePoints[i][1]);
+        SORTP.push_back(imagePoints[i][BoardSize.width]);
+        
+        ObjectPoints2D.push_back(objectP);
+        SORTimagetPoints.push_back(SORTP);
+    }
+
+
+    assert (SORTimagetPoints.size() == ObjectPoints2D.size());
+
+    cv::Mat temp;
+    int D = 45;
+    for(int i = 0; i < ObjectPoints2D.size(); i++)
+    {
+        temp = imgsToCalib[i].clone();
+        cv::Mat M = cv::getPerspectiveTransform(SORTimagetPoints[i], ObjectPoints2D[i]);
+        cv::undistort(temp, imgsToCalib[i], cameraMatrix, distCoeffs);
+        warpPerspective(imgsToCalib[i], dst, M, imgsToCalib[i].size());
+        cv::flip(dst,dst,0);
+        //cv::imshow("front-to-parallel",dst);
+        
+
+        std::vector<cv::Point> SortedPoints2;
+        cv::Mat gray2;
+        cv::Mat bin2;
+        cv::Mat contours_draw2;
+        std::vector<std::vector<cv::Point>> contours2;
+        
+        int c = 0;
+
+        cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
+        cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
+
+        cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
+
+        if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
+        {
+            drawLines(result2, SortedPoints2);
+        }
+
+        cv::Rect myROI(200 - D * 1.5, D*1.5 , D * (BoardSize.width + 1.8), D * (BoardSize.height + 1));
+        cv::Mat croppedRef(result2, myROI);
+        //cv::imshow("result2", result2);
+        cv::imshow("crop", croppedRef);
+        //cv::imshow("bin2", bin2);
+        cv::waitKey(0);
+
+        if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
+        {
+            std::vector<cv::Point3f> FimgPoint; 
+            for(int j = 0; j < SortedPoints2.size(); j++)
+            {
+                FimgPoint.push_back(cv::Point3f(SortedPoints2[j].x - BIAS , 3 * BIAS / 2 - SortedPoints2[j].y, 0.0));
+            }
+            NewObjectPointsModel.push_back(FimgPoint);
+        }
+        else{
+            NewObjectPointsModel.push_back(objectPoints);
+        }
+        cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
+    }
+    /*
+    for (int i = 0; i < imagePointsReProyected.size(); i++)
+    {
+        std::cout << NewObjectPointsModel[i] << std::endl;
+        for (int j = 0; j < imagePointsReProyected[i].size(); j++)
+        {
+        //    std::cout << "[i = " << i << "] = " << imagePointsReProyected[i][j] << "  <> "<< imagePoints[i][j] << std::endl;
+        }
+    }
+    */
+    std::vector<float> projectErrors;
+            
+
+    double totalAvgErr = 0;
+
+    std::vector<std::vector<cv::Point3f>> objectPointsNew(1);
+
+    calcPointPosition(objectPointsNew[0], BoardSize);
+    objectPointsNew.resize(imagePoints.size(),objectPointsNew[0]);
+
+    float rms = calibrateCamera(objectPointsNew, 
+                                            imagePointsReProyected, 
+                                            temp.size(), 
+                                            cameraMatrix,
+                                            distCoeffs, 
+                                            rvecs, 
+                                            tvecs, 
+                                            0);
+
+    std::cout << "\nRe-projection error reported by calibrateCamera =  "<< rms << std::endl;
+
+    totalAvgErr = computeReprojectionErrors(objectPointsNew, imagePointsReProyected,
+                                             rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
+    std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
+
+}
+
+
 void calcPointPosition(std::vector<cv::Point3f>& corners, cv::Size BoardSize)
 {
     corners.clear();
-    float squareSize = 45.7;
+    //float squareSize = 45.7;
+    float squareSize = 45;
     
     std::cout << "BoardSize.width  = " << BoardSize.width  << std::endl;
     std::cout << "BoardSize.height = " << BoardSize.height << std::endl;
@@ -558,10 +697,23 @@ bool Calibration(cv::Size imgSize,
     totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
                                              rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
     std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
+
+    std::cout << "\nCalibration Matrix:  \n"<<std::endl;
+
+    for (int im = 0; im < 3; im++)
+    {
+        for (int jm = 0; jm < 3; jm++)
+        {
+            std::cout << cameraMatrix.at<double>(im,jm) << " ";
+        }
+        std::cout << std::endl;
+    }
+
     return ok;
 }
 
-bool GetParams(cv::Size imgSize, 
+bool GetParams( std::vector<cv::Mat> imgsToCalib,
+                cv::Size imgSize, 
                 cv::Mat& cameraMatrix, 
                 cv::Mat& distCoeffs,
                 std::vector<std::vector<cv::Point2f>> imagePoints,
@@ -588,5 +740,15 @@ bool GetParams(cv::Size imgSize,
                             avr,
                             BoardSize,
                             newObjectPoints);
+
+
+    IterativeRefinement(imgsToCalib,
+                        newObjectPoints,
+                        imagePoints,
+                        cameraMatrix ,
+                        distCoeffs,
+                        rvecs,
+                        tvecs,
+                        BoardSize );    
     return res;
 }
