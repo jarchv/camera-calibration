@@ -220,7 +220,7 @@ int main(int argc, char** argv)
                 cv::Mat rvec(3,1,cv::DataType<double>::type);
                 cv::Mat tvec(3,1,cv::DataType<double>::type);
                 
-                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec);
+                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec,true,cv::SOLVEPNP_ITERATIVE);
 
 
                 ObjectPointsModel.push_back(cv::Point3f(0.0,0.0,45.7));
