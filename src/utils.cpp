@@ -741,7 +741,7 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             BoardSize,
                             newObjectPoints);
 
-
+    /*
     IterativeRefinement(imgsToCalib,
                         newObjectPoints,
                         imagePoints,
@@ -749,6 +749,8 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                         distCoeffs,
                         rvecs,
                         tvecs,
-                        BoardSize );    
+                        BoardSize );  
+
+    */  
     return res;
 }

@@ -259,7 +259,7 @@ int main(int argc, char** argv)
                 std::vector<cv::Point2f> ObjectPointsProjected;
                 std::vector<cv::Point>   ObjectPointsProjected2Image;
                 
-                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec,true,cv::SOLVEPNP_ITERATIVE);
+                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec);
 
                 ObjectPointsModel.push_back(cv::Point3f(0.0,0.0,D));
                 ObjectPointsModel.push_back(cv::Point3f(D,0.0,D));
@@ -293,48 +293,8 @@ int main(int argc, char** argv)
                     cv::line(view, ObjectPointsProjected2Image[6], ObjectPointsProjected2Image[7], cv::Scalar(0,0,255), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[6], ObjectPointsProjected2Image[4], cv::Scalar(0,255,0), 4, 8);
                 }
-
-                std::vector<cv::Point2f> ObjectPointsModel2D;
-                for(int i = 0; i < 4; i++)
-                {
-                    ObjectPointsModel2D.push_back(cv::Point2f(ObjectPointsModel[i].x + 200, ObjectPointsModel[3 - i].y + 200));
-                }
-                cv::Mat M = cv::getPerspectiveTransform(imagePointsModel, ObjectPointsModel2D);
-                cv::Mat dst;
-                warpPerspective(temp, dst, M, view.size());
-
-                cv::imshow("front-to-parallel",dst);
-
-                std::vector<cv::Point> SortedPoints2;
-                cv::Mat gray2;
-                cv::Mat bin2;
-                cv::Mat contours_draw2;
-                std::vector<std::vector<cv::Point>> contours2;
-                int c = 0;
-
-                cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
-                cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
-
-                cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 1.05);
-                /*
-                if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
-                {
-                    std::cout << "1 : " << SortedPoints2[0].x - 200 << std::endl;
-                    std::cout << "1 : " << SortedPoints2[0].y - 200 << std::endl;
-                }
-                */
-                if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
-                {
-                    drawLines(result2, SortedPoints2);
-                }
-
-                cv::Rect myROI(200 - D * 1.5, D*1.5 , D * (BoardSize.width + 1.8), D * (BoardSize.height + 1));
-                cv::Mat croppedRef(result2, myROI);
-                cv::imshow("result2", result2);
-                cv::imshow("cropp", croppedRef);
-                //initUndistortRectifyMap(cameraMatrix,distCoeffs, InputArray newCameraMatrix, Size size, int m1type, OutputArray map1, OutputArray map2)
             }
-            /*
+            
             std::vector<cv::Point2f> ObjectPointsModel2D;
             for(int i = 0; i < 4; i++)
             {
@@ -368,7 +328,7 @@ int main(int argc, char** argv)
             cv::imshow("result2", result2);
             cv::imshow("cropp", croppedRef);
             cv::imshow("bin2", bin2);
-            */
+            
             cv::resize(view       , view        , cv::Size(T_width, T_height));
             Mat2Mat(view       , Template, 20 + T_height   ,     T_width*2 + 30);
         }
