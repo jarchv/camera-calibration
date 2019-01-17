@@ -259,7 +259,7 @@ int main(int argc, char** argv)
                 std::vector<cv::Point2f> ObjectPointsProjected;
                 std::vector<cv::Point>   ObjectPointsProjected2Image;
                 
-                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec);
+                cv::solvePnP(ObjectPointsModel, imagePointsModel, cameraMatrix, distCoeffs, rvec, tvec,true,cv::SOLVEPNP_ITERATIVE);
 
                 ObjectPointsModel.push_back(cv::Point3f(0.0,0.0,D));
                 ObjectPointsModel.push_back(cv::Point3f(D,0.0,D));
