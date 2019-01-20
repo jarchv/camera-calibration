@@ -510,7 +510,8 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
                          std::vector<std::vector<cv::Point2f>> imagePoints,
                          cv::Mat& cameraMatrix , cv::Mat& distCoeffs,
                          std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
-                         cv::Size BoardSize )
+                         cv::Size BoardSize,
+                         double& getAvr)
 {
     std::vector<std::vector<cv::Point3f>> NewObjectPointsModel;
 
@@ -529,15 +530,21 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
     {
         objectP.clear();
         SORTP.clear();
-        objectP.push_back(cv::Point2f(objectPoints[0].x + BIAS, objectPoints[0].y + BIAS)     );
-        objectP.push_back(cv::Point2f(objectPoints[BoardSize.width + 1].x + BIAS, objectPoints[BoardSize.width + 1].y + BIAS)                   );
-        objectP.push_back(cv::Point2f(objectPoints[1].x + BIAS, objectPoints[1].y + BIAS) );
-        objectP.push_back(cv::Point2f(objectPoints[BoardSize.width].x + BIAS, objectPoints[BoardSize.width].y + BIAS)                   );
 
-        SORTP.push_back(imagePoints[i][0]);
-        SORTP.push_back(imagePoints[i][BoardSize.width + 1]);
-        SORTP.push_back(imagePoints[i][1]);
-        SORTP.push_back(imagePoints[i][BoardSize.width]);
+        int pos1 = 0;
+        int pos2 = BoardSize.width * BoardSize.height - 1;
+        int pos3 = BoardSize.width - 1;
+        int pos4 = BoardSize.width * (BoardSize.height - 1);
+        
+        objectP.push_back(cv::Point2f(objectPoints[pos1].x + BIAS, objectPoints[pos1].y + BIAS)     );
+        objectP.push_back(cv::Point2f(objectPoints[pos2].x + BIAS, objectPoints[pos2].y + BIAS)                   );
+        objectP.push_back(cv::Point2f(objectPoints[pos3].x + BIAS, objectPoints[pos3].y + BIAS) );
+        objectP.push_back(cv::Point2f(objectPoints[pos4].x + BIAS, objectPoints[pos4].y + BIAS)                   );
+
+        SORTP.push_back(imagePoints[i][pos1]);
+        SORTP.push_back(imagePoints[i][pos2]);
+        SORTP.push_back(imagePoints[i][pos3]);
+        SORTP.push_back(imagePoints[i][pos4]);
         
         ObjectPoints2D.push_back(objectP);
         SORTimagetPoints.push_back(SORTP);
@@ -576,12 +583,13 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
             drawLines(result2, SortedPoints2);
         }
 
-        cv::Rect myROI(200 - D * 1.5, D*1.5 , D * (BoardSize.width + 1.8), D * (BoardSize.height + 1));
+        cv::Rect myROI(200 - D * 1.3, D*2.5 , D * (BoardSize.width + 1.5), D * (BoardSize.height + 0.5));
         cv::Mat croppedRef(result2, myROI);
         //cv::imshow("result2", result2);
-        cv::imshow("crop", croppedRef);
+        //cv::imshow("crop", croppedRef);
         //cv::imshow("bin2", bin2);
-        cv::waitKey(0);
+        
+        //cv::waitKey(0);
 
         if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
         {
@@ -597,16 +605,18 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
         }
         cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
     }
-    /*
+    
     for (int i = 0; i < imagePointsReProyected.size(); i++)
     {
-        std::cout << NewObjectPointsModel[i] << std::endl;
+        //std::cout << NewObjectPointsModel[i] << std::endl;
         for (int j = 0; j < imagePointsReProyected[i].size(); j++)
         {
+            imagePointsReProyected[i][j].x = 0.5 * (imagePoints[i][j].x + imagePointsReProyected[i][j].x);
+            imagePointsReProyected[i][j].y = 0.5 * (imagePoints[i][j].y + imagePointsReProyected[i][j].y);
         //    std::cout << "[i = " << i << "] = " << imagePointsReProyected[i][j] << "  <> "<< imagePoints[i][j] << std::endl;
         }
     }
-    */
+    
     std::vector<float> projectErrors;
             
 
@@ -626,12 +636,12 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
                                             tvecs, 
                                             0);
 
-    std::cout << "\nRe-projection error reported by calibrateCamera =  "<< rms << std::endl;
+    std::cout << "Re-projection error reported by calibrateCamera =  "<< rms << std::endl;
 
-    totalAvgErr = computeReprojectionErrors(objectPointsNew, imagePointsReProyected,
-                                             rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
-    std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
-
+    //totalAvgErr = computeReprojectionErrors(objectPointsNew, imagePointsReProyected,
+    //                                         rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
+    //std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
+    getAvr = rms;
 }
 
 
@@ -641,8 +651,8 @@ void calcPointPosition(std::vector<cv::Point3f>& corners, cv::Size BoardSize)
     //float squareSize = 45.7;
     float squareSize = 45;
     
-    std::cout << "BoardSize.width  = " << BoardSize.width  << std::endl;
-    std::cout << "BoardSize.height = " << BoardSize.height << std::endl;
+    //std::cout << "BoardSize.width  = " << BoardSize.width  << std::endl;
+    //std::cout << "BoardSize.height = " << BoardSize.height << std::endl;
     
     for (int i = 0; i < BoardSize.height; i++)
     {
@@ -696,9 +706,9 @@ bool Calibration(cv::Size imgSize,
     
     totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
                                              rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
-    std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
-
-    std::cout << "\nCalibration Matrix:  \n"<<std::endl;
+    
+    //std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
+    //std::cout << "\nCalibration Matrix:  \n"<<std::endl;
 
     for (int im = 0; im < 3; im++)
     {
@@ -708,7 +718,7 @@ bool Calibration(cv::Size imgSize,
         }
         std::cout << std::endl;
     }
-
+    
     return ok;
 }
 
@@ -741,16 +751,19 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             BoardSize,
                             newObjectPoints);
 
-    /*
-    IterativeRefinement(imgsToCalib,
-                        newObjectPoints,
-                        imagePoints,
-                        cameraMatrix ,
-                        distCoeffs,
-                        rvecs,
-                        tvecs,
-                        BoardSize );  
-
-    */  
+    
+    for (int i = 0; i < 20 ; i ++)
+    {
+        IterativeRefinement(imgsToCalib,
+                            newObjectPoints,
+                            imagePoints,
+                            cameraMatrix ,
+                            distCoeffs,
+                            rvecs,
+                            tvecs,
+                            BoardSize,
+                            avr );  
+    }
+     
     return res;
 }

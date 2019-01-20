@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     
     T_width  = (int)frame.cols*0.8;
     T_height = (int)frame.rows*0.8;
-    
+    std::cout << "size" << frame.size() << std::endl;
     cv::VideoWriter video("../files/outcpp.avi",CV_FOURCC('D','I','V','3'),30, cv::Size( T_width*3 + 40,T_height*2 + 30)); 
     
     for(;;)
@@ -72,9 +72,11 @@ int main(int argc, char** argv)
         Template = cv::Mat(T_height*2 + 30, T_width*3 + 40, CV_8UC3, cv::Scalar(45,45,45));
         
         cap >> frame;
+
         cv::Mat toModel = frame.clone();
         imgSize = frame.size();
-        usleep(10000);
+        //usleep(10000);
+        
         if(frame.empty())
             break;
 
@@ -84,7 +86,7 @@ int main(int argc, char** argv)
         cv::GaussianBlur(gray, gray, cv::Size(5,5), 0, 0);  
 
         result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.08);
-
+        
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
         time_elapsed = time_avr/countFrame;
@@ -92,7 +94,7 @@ int main(int argc, char** argv)
         if (SortedPoints.size() != (BoardSize.width * BoardSize.height))
             erros++;
     
-        accuracy = 1 - erros/((float)countFrame * ground_truth);
+        accuracy = 1 - erros/((float)countFrame);
 
         if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
         {
@@ -147,6 +149,7 @@ int main(int argc, char** argv)
             std::cout << "time per frame is " << time_elapsed << " until " << countFrame<< " frames" << std::endl;
 
         */
+
         cv::putText(Template,"Time epalsed : " 
                                 + std::to_string(time_elapsed)
                                 + " seconds" , cv::Point(T_width + 40, T_height + 60),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1); 
@@ -180,7 +183,7 @@ int main(int argc, char** argv)
             }
         }
 
-        if ( mode == CAPTURING && imagePoints.size() >= 6 )
+        if ( mode == CAPTURING && imagePoints.size() >= 10)
         {
             std::cout << "\nrun calibrarion ..." << std::endl;
             bool result = GetParams(imgToCalib,imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error,BoardSize,PointsPositions);
@@ -227,32 +230,24 @@ int main(int argc, char** argv)
             
             if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
             {               
-                //std::vector<cv::Point3f> ObjectPointsModel(4);
-                //std::vector<cv::Point2f> imagePointsModel(4);
-                
                 ObjectPointsModel.clear();
                 imagePointsModel.clear();
 
-                ObjectPointsModel.push_back(PointsPositions[0]);
-                ObjectPointsModel.push_back(PointsPositions[BoardSize.width + 1]);
-                ObjectPointsModel.push_back(PointsPositions[1]);
-                ObjectPointsModel.push_back(PointsPositions[BoardSize.width]);
-                /*
-                ObjectPointsModel[0] = PointsPositions[0];
-                ObjectPointsModel[1] = PointsPositions[BoardSize.width + 1];
-                ObjectPointsModel[2] = PointsPositions[1];
-                ObjectPointsModel[3] = PointsPositions[BoardSize.width];
-                */
-                /*
-                imagePointsModel[0]  = cv::Point2f((float)SortedPoints[0].x,(float)SortedPoints[0].y);
-                imagePointsModel[1]  = cv::Point2f((float)SortedPoints[BoardSize.width + 1].x,(float)SortedPoints[BoardSize.width + 1].y);
-                imagePointsModel[2]  = cv::Point2f((float)SortedPoints[1].x,(float)SortedPoints[1].y);
-                imagePointsModel[3]  = cv::Point2f((float)SortedPoints[BoardSize.width].x,(float)SortedPoints[BoardSize.width].y);                
-                */
-                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[0].x,(float)SortedPoints[0].y));
-                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[BoardSize.width + 1].x,(float)SortedPoints[BoardSize.width + 1].y));
-                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[1].x,(float)SortedPoints[1].y));
-                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[BoardSize.width].x,(float)SortedPoints[BoardSize.width].y)); 
+                int pos1 = 0;
+                int pos2 = BoardSize.width * BoardSize.height - 1;
+                int pos3 = BoardSize.width - 1;
+                int pos4 = BoardSize.width * (BoardSize.height - 1);
+
+                ObjectPointsModel.push_back(PointsPositions[pos1]);
+                ObjectPointsModel.push_back(PointsPositions[pos2]);
+                ObjectPointsModel.push_back(PointsPositions[pos3]);
+                ObjectPointsModel.push_back(PointsPositions[pos4]);
+
+                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[pos1].x,(float)SortedPoints[pos1].y));
+                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[pos2].x,(float)SortedPoints[pos2].y));
+                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[pos3].x,(float)SortedPoints[pos3].y));
+                imagePointsModel.push_back(cv::Point2f((float)SortedPoints[pos4].x,(float)SortedPoints[pos4].y)); 
+
                 cv::Mat rvec(3,1,cv::DataType<double>::type);
                 cv::Mat tvec(3,1,cv::DataType<double>::type);
 
@@ -265,7 +260,11 @@ int main(int argc, char** argv)
                 ObjectPointsModel.push_back(cv::Point3f(D,0.0,D));
                 ObjectPointsModel.push_back(cv::Point3f(0.0,D,D));
                 ObjectPointsModel.push_back(cv::Point3f(D,D,D));
-                    
+
+                ObjectPointsModel.push_back(cv::Point3f(D  ,0.0,0));
+                ObjectPointsModel.push_back(cv::Point3f(0.0,  D,0));
+                ObjectPointsModel.push_back(cv::Point3f(  D,  D,0));
+
                 cv::projectPoints(ObjectPointsModel, rvec, tvec, cameraMatrix, distCoeffs, ObjectPointsProjected);
 
                 bool neg = false;
@@ -281,17 +280,22 @@ int main(int argc, char** argv)
 
                 if (neg == false)
                 {
-                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[3], cv::Scalar(255,0,0), 4, 8);
-                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[2], cv::Scalar(0,0,255), 4, 8);
-                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[4], cv::Scalar(0,255,0), 4, 8);
-                    cv::line(view, ObjectPointsProjected2Image[2], ObjectPointsProjected2Image[5], cv::Scalar(255,255,0), 4, 8);
-                    cv::line(view, ObjectPointsProjected2Image[3], ObjectPointsProjected2Image[6], cv::Scalar(0,255,255), 4, 8);
-                    cv::line(view, ObjectPointsProjected2Image[1], ObjectPointsProjected2Image[7], cv::Scalar(255,0,255), 4, 8);
+                    //cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[3], cv::Scalar(255,0,0), 4, 8);
+                    //cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[2], cv::Scalar(0,0,255), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[4], cv::Scalar(0,255,255), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[8], ObjectPointsProjected2Image[5], cv::Scalar(255,255,0), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[9], ObjectPointsProjected2Image[6], cv::Scalar(0,255,255), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[10], ObjectPointsProjected2Image[7], cv::Scalar(255,0,255), 4, 8);
 
                     cv::line(view, ObjectPointsProjected2Image[4], ObjectPointsProjected2Image[5], cv::Scalar(0,255,0), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[5], ObjectPointsProjected2Image[7], cv::Scalar(255,0,0), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[6], ObjectPointsProjected2Image[7], cv::Scalar(0,0,255), 4, 8);
-                    cv::line(view, ObjectPointsProjected2Image[6], ObjectPointsProjected2Image[4], cv::Scalar(0,255,0), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[6], ObjectPointsProjected2Image[4], cv::Scalar(255,255,0), 4, 8);
+
+                    cv::line(view, ObjectPointsProjected2Image[0 ], ObjectPointsProjected2Image[ 8], cv::Scalar(255,0,0), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[0 ], ObjectPointsProjected2Image[ 9], cv::Scalar(0,255,0), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[10], ObjectPointsProjected2Image[ 8], cv::Scalar(0,255,0), 4, 8);
+                    cv::line(view, ObjectPointsProjected2Image[10], ObjectPointsProjected2Image[ 9], cv::Scalar(255,0,0), 4, 8);
                 }
             }
             
@@ -323,18 +327,19 @@ int main(int argc, char** argv)
                 drawLines(result2, SortedPoints2);
             }
 
-            cv::Rect myROI(200 - D * 1.5, D*1.5 , D * (BoardSize.width + 1.8), D * (BoardSize.height + 1));
+            cv::Rect myROI(200 - D * 1.0, D*3.7 , D * (BoardSize.width + 1.2), D * (BoardSize.height + 0.6));
             cv::Mat croppedRef(result2, myROI);
-            cv::imshow("result2", result2);
+            
+            //cv::imshow("result2", result2);
             cv::imshow("cropp", croppedRef);
-            cv::imshow("bin2", bin2);
+            //cv::imshow("bin2", bin2);
             
             cv::resize(view       , view        , cv::Size(T_width, T_height));
             Mat2Mat(view       , Template, 20 + T_height   ,     T_width*2 + 30);
         }
 
         cv::imshow("Template", Template);
-        video.write(Template);
+        //video.write(Template);
     }
 
     cap.release();
