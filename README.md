@@ -13,7 +13,7 @@ make
 
 1. Dentro de la carpeta **build**:
 ```
-./out [video.avi]
+./out [path/video.avi] 5 4 # 5 y 4 son las dimensiones de la distribuciones de los puntos de control
 ```
 Necesariamente el video deberá estar dentro de una carpeta llamada **files**: <br><br>
 
