@@ -8,7 +8,7 @@ float time_elapsed;
 int predict;
 float ground_truth = 20;
 float accuracy; 
-float erros=0;
+float erros=0.0;
 
 int CAPTURING  = 0;
 int CALIBRATED = 1;

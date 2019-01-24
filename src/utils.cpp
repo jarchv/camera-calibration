@@ -257,9 +257,10 @@ void SortingPoints(std::vector<cv::Point>  tempCnts, std::vector<cv::Point>& nex
         nextCenters.clear();
     }
 }
-int trancking(  std::vector<cv::Point>  tempCnts, 
+bool trancking(  std::vector<cv::Point>  tempCnts, 
                 std::vector<cv::Point>  prevCenters,
                 std::vector<cv::Point>& nextCenters,
+                cv::Size BoardSize,
                 int countFrame )
 {
     int centerx;
@@ -284,6 +285,11 @@ int trancking(  std::vector<cv::Point>  tempCnts,
     {
         int nextX;
         int nextY;
+
+        if (prevCenters.size() != (BoardSize.height * BoardSize.width))
+        {
+            return true;
+        }
         for (int i = 0; i < prevCenters.size(); i++)
         {
             centerx = prevCenters[i].x;
@@ -315,12 +321,14 @@ int trancking(  std::vector<cv::Point>  tempCnts,
 
         return false;
     }
+    /*
     if(countFrame > 0)
     {
         return true;
     }
 
     return center_jump;
+    */
 }
 
 std::vector<cv::Point> findConcentricCenters( std::vector<cv::RotatedRect> minRect,
@@ -380,6 +388,7 @@ cv::Mat findCenters(cv::Mat frame,
                     cv::Size BoardSize,
                     double T)
 {
+    countFrame++;
     int prevcenterx = 0;
     int prevcentery = 0;
     cv::Point prevCenter = cv::Point(0,0);
@@ -440,6 +449,7 @@ cv::Mat findCenters(cv::Mat frame,
     bool Cjump = trancking( tempCnts, 
                             OldPoints,
                             newPoints,
+                            BoardSize,
                             countFrame);   
     
     if (Cjump == true)
@@ -467,7 +477,7 @@ cv::Mat findCenters(cv::Mat frame,
         OldPoints = newPoints;
     }
 
-    countFrame++;
+    
     
     return result;
 }
@@ -513,7 +523,13 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
                          cv::Size BoardSize,
                          double& getAvr)
 {
-    std::vector<std::vector<cv::Point3f>> NewObjectPointsModel;
+    cv::Mat dst;
+    float BIAS = 200;
+
+    std::vector<std::vector<cv::Point3f>> NewObjectPointsModel(imagePoints.size());
+    std::vector<std::vector<cv::Point2f>> imagePointsReProyected(imagePoints.size());
+    /*
+    
 
     std::vector<std::vector<cv::Point2f>> ObjectPoints2D;
     std::vector<std::vector<cv::Point2f>> SORTimagetPoints;
@@ -521,11 +537,11 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
     std::vector<cv::Point2f> SORTP;
 
     std::vector<std::vector<cv::Point2f>> imagePointsReProyected(imagePoints.size());
-    cv::Mat dst;
+    
 
     int F = BoardSize.width * BoardSize.height - 1;
-
-    float BIAS = 200;
+    
+    
     for(int i = 0; i < imagePoints.size(); i++)
     {
         objectP.clear();
@@ -552,17 +568,43 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
 
 
     assert (SORTimagetPoints.size() == ObjectPoints2D.size());
-
+    */
     cv::Mat temp;
     int D = 45;
-    for(int i = 0; i < ObjectPoints2D.size(); i++)
+    for(int i = 0; i < imagePoints.size(); i++)
     {
         temp = imgsToCalib[i].clone();
-        cv::Mat M = cv::getPerspectiveTransform(SORTimagetPoints[i], ObjectPoints2D[i]);
+  
+        std::vector<cv::Point2f> ObjectPointsModel2D;
+        for(int j = 0; j < objectPoints.size(); j++)
+        {
+            ObjectPointsModel2D.push_back(cv::Point2f(objectPoints[j].x + BIAS, D * (BoardSize.height - 1) -  objectPoints[j].y + BIAS/2));
+        }
+
+        std::vector<cv::Point2f> imagePointsModel2D;
+
+        for(int j = 0; j < imagePoints[i].size(); j++)
+        {
+            imagePointsModel2D.push_back(cv::Point2f(imagePoints[i][j].x, imagePoints[i][j].y));
+        }
+        //std::cout << ObjectPointsModel2D << std::endl;
+        //std::cout << imagePointsModel2D  << std::endl;
+        //cv::Mat M = cv::getPerspectiveTransform(SORTimagetPoints[i], ObjectPoints2D[i]);
+        cv::Mat M = cv::findHomography(imagePointsModel2D, ObjectPointsModel2D);
+
+        if (M.cols != 3 || M.rows != 3)
+        {
+            //std::cout << "M + " << std::endl;
+            //NewObjectPointsModel.push_back(objectPoints);
+            NewObjectPointsModel[i] = objectPoints;
+            //std::cout << NewObjectPointsModel[i] << std::endl; 
+            cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
+            continue;
+        }
         cv::undistort(temp, imgsToCalib[i], cameraMatrix, distCoeffs);
         warpPerspective(imgsToCalib[i], dst, M, imgsToCalib[i].size());
-        cv::flip(dst,dst,0);
-        //cv::imshow("front-to-parallel",dst);
+        //cv::flip(dst,dst,0);
+        
         
 
         std::vector<cv::Point> SortedPoints2;
@@ -578,41 +620,50 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
 
         cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
 
+        //cv::Rect myROI(200 - D * 1.3, D*2.5 , D * (BoardSize.width + 1.5), D * (BoardSize.height + 0.5));
+        cv::Rect myROI(BIAS - D * 1.0, D*1.5 , D * (BoardSize.width + 1.2), D * (BoardSize.height + 0.5));
+        cv::Mat croppedRef(result2, myROI);
+
+
         if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
         {
             drawLines(result2, SortedPoints2);
-        }
-
-        cv::Rect myROI(200 - D * 1.3, D*2.5 , D * (BoardSize.width + 1.5), D * (BoardSize.height + 0.5));
-        cv::Mat croppedRef(result2, myROI);
-        //cv::imshow("result2", result2);
-        //cv::imshow("crop", croppedRef);
-        //cv::imshow("bin2", bin2);
-        
-        //cv::waitKey(0);
-
-        if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
-        {
             std::vector<cv::Point3f> FimgPoint; 
             for(int j = 0; j < SortedPoints2.size(); j++)
             {
-                FimgPoint.push_back(cv::Point3f(SortedPoints2[j].x - BIAS , 3 * BIAS / 2 - SortedPoints2[j].y, 0.0));
+                FimgPoint.push_back(cv::Point3f(SortedPoints2[j].x - BIAS , D * (BoardSize.height - 1) - (SortedPoints2[j].y - BIAS/2), 0.0));
             }
-            NewObjectPointsModel.push_back(FimgPoint);
+            //NewObjectPointsModel.push_back(FimgPoint);
+            NewObjectPointsModel[i] = FimgPoint;
         }
         else{
-            NewObjectPointsModel.push_back(objectPoints);
+            //NewObjectPointsModel.push_back(objectPoints);
+            NewObjectPointsModel[i] = objectPoints;
         }
+
+        //std::cout << NewObjectPointsModel[i] << std::endl; 
+        //cv::imshow("front-to-parallel",dst);
+        //cv::imshow("result2", result2);
+        cv::imshow("crop", croppedRef);        
+        cv::waitKey(30);    
         cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
+        /*
+        std::cout << "======>" << std::endl;
+        std::cout << imagePointsReProyected[i] << std::endl; 
+        std::cout << "======" << std::endl;
+        std::cout << imagePoints[i] << std::endl; 
+        std::cout << "<======" << std::endl;
+        */
     }
-    
+    cv::destroyAllWindows();
+
     for (int i = 0; i < imagePointsReProyected.size(); i++)
     {
         //std::cout << NewObjectPointsModel[i] << std::endl;
         for (int j = 0; j < imagePointsReProyected[i].size(); j++)
         {
-            imagePointsReProyected[i][j].x = 0.5 * (imagePoints[i][j].x + imagePointsReProyected[i][j].x);
-            imagePointsReProyected[i][j].y = 0.5 * (imagePoints[i][j].y + imagePointsReProyected[i][j].y);
+            imagePointsReProyected[i][j].x = (imagePoints[i][j].x)*0.5 + (imagePointsReProyected[i][j].x)*0.5;
+            imagePointsReProyected[i][j].y = (imagePoints[i][j].y)*0.5 + (imagePointsReProyected[i][j].y)*0.5;
         //    std::cout << "[i = " << i << "] = " << imagePointsReProyected[i][j] << "  <> "<< imagePoints[i][j] << std::endl;
         }
     }

@@ -27,7 +27,6 @@ cv::Size imgSize;
 float D = 45;
 
 double avr_error;
-
 std::vector<cv::Point3f> PointsPositions;
 std::vector<cv::Point3f> ObjectPointsModel;
 std::vector<cv::Point2f> imagePointsModel;
@@ -48,9 +47,9 @@ int main(int argc, char** argv)
     int COLS = strtol (argv[2], NULL,10);
     int ROWS = strtol (argv[3], NULL,10);
 
-    cv::VideoCapture cap("../files/"+filename);
+    //cv::VideoCapture cap("../files/"+filename);
     cv::Size BoardSize(COLS,ROWS);
-    //cv::VideoCapture cap(0);
+    cv::VideoCapture cap(0);
 
     bool newF = true;
 
@@ -93,7 +92,8 @@ int main(int argc, char** argv)
 
         if (SortedPoints.size() != (BoardSize.width * BoardSize.height))
             erros++;
-    
+
+        std::cout << "-> " << erros << "->" << countFrame << std::endl;
         accuracy = 1 - erros/((float)countFrame);
 
         if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
@@ -112,8 +112,8 @@ int main(int argc, char** argv)
 
         cv::resize(frame        , frame         , cv::Size(T_width, T_height));
         //cv::resize(gray         , gray          , cv::Size(T_width, T_height));
-        cv::resize(bin          , bin           , cv::Size(T_width, T_height));  
-        cv::resize(contours_draw, contours_draw , cv::Size(T_width, T_height));
+        //cv::resize(bin          , bin           , cv::Size(T_width, T_height));  
+        //cv::resize(contours_draw, contours_draw , cv::Size(T_width, T_height));
         cv::resize(result       , result        , cv::Size(T_width, T_height));
 
         Mat2Mat(frame        , Template, 10              ,               10);
@@ -123,9 +123,11 @@ int main(int argc, char** argv)
         Mat2Mat(contours_draw, Template, 20 + T_height   ,               10);
         Mat2Mat(result       , Template, 20 + T_height   ,     T_width + 20);
         */
-        Mat2Mat(bin         , Template, 10              ,     T_width + 20);
-        Mat2Mat(contours_draw          , Template, 10              ,   T_width*2 + 30);
-        Mat2Mat(result , Template, 20 + T_height   ,               10);
+        //Mat2Mat(bin         , Template, 10              ,     T_width + 20);
+        Mat2Mat(result         , Template, 10              ,     T_width + 20);
+        
+        //Mat2Mat(result      , Template, 10              ,   T_width*2 + 30);
+        //Mat2Mat(result , Template, 20 + T_height   ,               10);
         //Mat2Mat(result       , Template, 20 + T_height   ,     T_width + 20);
 
         //std::cout << "->" << std::endl;
@@ -183,14 +185,14 @@ int main(int argc, char** argv)
             }
         }
 
-        if ( mode == CAPTURING && imagePoints.size() >= 10)
+        if ( mode == CAPTURING && imagePoints.size() >= 20)
         {
             std::cout << "\nrun calibrarion ..." << std::endl;
             bool result = GetParams(imgToCalib,imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error,BoardSize,PointsPositions);
             
             std::cout << "Result = " << result << std::endl;
             std::cout << "\nCalibration Matrix:  " << result << "\n"<<std::endl;
-
+            
             for (int im = 0; im < 3; im++)
             {
                 for (int jm = 0; jm < 3; jm++)
@@ -200,6 +202,7 @@ int main(int argc, char** argv)
                 std::cout << std::endl;
             }
             mode = CALIBRATED;
+            std::cout << "\nDistCoeffs: " << distCoeffs << std::endl;
         }
 
         if ( mode == CALIBRATED)
@@ -280,8 +283,6 @@ int main(int argc, char** argv)
 
                 if (neg == false)
                 {
-                    //cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[3], cv::Scalar(255,0,0), 4, 8);
-                    //cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[2], cv::Scalar(0,0,255), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[0], ObjectPointsProjected2Image[4], cv::Scalar(0,255,255), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[8], ObjectPointsProjected2Image[5], cv::Scalar(255,255,0), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[9], ObjectPointsProjected2Image[6], cv::Scalar(0,255,255), 4, 8);
@@ -297,45 +298,61 @@ int main(int argc, char** argv)
                     cv::line(view, ObjectPointsProjected2Image[10], ObjectPointsProjected2Image[ 8], cv::Scalar(0,255,0), 4, 8);
                     cv::line(view, ObjectPointsProjected2Image[10], ObjectPointsProjected2Image[ 9], cv::Scalar(255,0,0), 4, 8);
                 }
+                
+                std::vector<cv::Point2f> ObjectPointsModel2D;
+                for(int i = 0; i < PointsPositions.size(); i++)
+                {
+                    ObjectPointsModel2D.push_back(cv::Point2f(PointsPositions[i].x + 200, PointsPositions[i].y + 200));
+                }
+
+                std::vector<cv::Point2f> imagePointsModel2D;
+
+                for(int i = 0; i < SortedPoints.size(); i++)
+                {
+                    imagePointsModel2D.push_back(cv::Point2f(SortedPoints[i].x, SortedPoints[i].y));
+                }
+
+                cv::Mat M = cv::findHomography(imagePointsModel2D, ObjectPointsModel2D);
+                cv::Mat dst;
+
+                if (M.cols == 3 && M.rows == 3)
+                {
+                    warpPerspective(temp, dst, M, temp.size());
+
+                    cv::flip(dst,dst,0);
+                    cv::resize(dst, dst, cv::Size(T_width, T_height));
+                    Mat2Mat(dst      , Template, 10              ,   T_width*2 + 30);
+                    //cv::imshow("front-to-parallel",dst);
+
+                    std::vector<cv::Point> SortedPoints2;
+                    cv::Mat gray2;
+                    cv::Mat bin2;
+                    cv::Mat contours_draw2;
+                    std::vector<std::vector<cv::Point>> contours2;
+                    int c = 0;
+
+                    cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
+                    cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
+
+                    cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
+
+                    if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
+                    {
+                        drawLines(result2, SortedPoints2);
+                    }
+
+                    cv::Rect myROI(200-D*1.5, D*2.0 , D * (BoardSize.width - 0.5), D * (BoardSize.height - 0.5));
+                    cv::Mat croppedRef(result2, myROI);
+                    cv::resize(croppedRef, croppedRef , cv::Size(T_width, T_height));
+
+                    Mat2Mat(croppedRef , Template, 20 + T_height   ,               10);
+
+                }
+
             }
-            
-            std::vector<cv::Point2f> ObjectPointsModel2D;
-            for(int i = 0; i < 4; i++)
-            {
-                ObjectPointsModel2D.push_back(cv::Point2f(ObjectPointsModel[i].x + 200, ObjectPointsModel[3 - i].y + 200));
-            }
-            cv::Mat M = cv::getPerspectiveTransform(imagePointsModel, ObjectPointsModel2D);
-            cv::Mat dst;
-            warpPerspective(temp, dst, M, temp.size());
-
-            cv::imshow("front-to-parallel",dst);
-
-            std::vector<cv::Point> SortedPoints2;
-            cv::Mat gray2;
-            cv::Mat bin2;
-            cv::Mat contours_draw2;
-            std::vector<std::vector<cv::Point>> contours2;
-            int c = 0;
-
-            cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
-            cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
-
-            cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
-
-            if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
-            {
-                drawLines(result2, SortedPoints2);
-            }
-
-            cv::Rect myROI(200 - D * 1.0, D*3.7 , D * (BoardSize.width + 1.2), D * (BoardSize.height + 0.6));
-            cv::Mat croppedRef(result2, myROI);
-            
-            //cv::imshow("result2", result2);
-            cv::imshow("cropp", croppedRef);
-            //cv::imshow("bin2", bin2);
-            
             cv::resize(view       , view        , cv::Size(T_width, T_height));
-            Mat2Mat(view       , Template, 20 + T_height   ,     T_width*2 + 30);
+            Mat2Mat(view       , Template, 20 + T_height   ,     T_width*2 + 30);            
+
         }
 
         cv::imshow("Template", Template);
