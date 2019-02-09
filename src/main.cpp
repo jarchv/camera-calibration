@@ -47,9 +47,9 @@ int main(int argc, char** argv)
     int COLS = strtol (argv[2], NULL,10);
     int ROWS = strtol (argv[3], NULL,10);
 
-    //cv::VideoCapture cap("../files/"+filename);
+    cv::VideoCapture cap("../files/"+filename);
     cv::Size BoardSize(COLS,ROWS);
-    cv::VideoCapture cap(0);
+    //cv::VideoCapture cap(0);
 
     bool newF = true;
 
@@ -92,8 +92,6 @@ int main(int argc, char** argv)
 
         if (SortedPoints.size() != (BoardSize.width * BoardSize.height))
             erros++;
-
-        std::cout << "-> " << erros << "->" << countFrame << std::endl;
         accuracy = 1 - erros/((float)countFrame);
 
         if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
@@ -185,7 +183,7 @@ int main(int argc, char** argv)
             }
         }
 
-        if ( mode == CAPTURING && imagePoints.size() >= 20)
+        if ( mode == CAPTURING && imagePoints.size() >= 12)
         {
             std::cout << "\nrun calibrarion ..." << std::endl;
             bool result = GetParams(imgToCalib,imgSize,cameraMatrix,distCoeffs,imagePoints,avr_error,BoardSize,PointsPositions);
@@ -302,7 +300,7 @@ int main(int argc, char** argv)
                 std::vector<cv::Point2f> ObjectPointsModel2D;
                 for(int i = 0; i < PointsPositions.size(); i++)
                 {
-                    ObjectPointsModel2D.push_back(cv::Point2f(PointsPositions[i].x + 200, PointsPositions[i].y + 200));
+                    ObjectPointsModel2D.push_back(cv::Point2f(PointsPositions[i].x + 200, PointsPositions[i].y + 100));
                 }
 
                 std::vector<cv::Point2f> imagePointsModel2D;
@@ -322,7 +320,6 @@ int main(int argc, char** argv)
                     cv::flip(dst,dst,0);
                     cv::resize(dst, dst, cv::Size(T_width, T_height));
                     Mat2Mat(dst      , Template, 10              ,   T_width*2 + 30);
-                    //cv::imshow("front-to-parallel",dst);
 
                     std::vector<cv::Point> SortedPoints2;
                     cv::Mat gray2;
@@ -336,17 +333,19 @@ int main(int argc, char** argv)
 
                     cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
 
-                    if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
+                    if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
                     {
                         drawLines(result2, SortedPoints2);
+
+                        int Xl = (int)SortedPoints2[0].x;
+                        int Yl = (int)SortedPoints2[15].y;
+
+                        cv::Rect myROI(Xl - D * 0.5, Yl - D*0.5 , D * (BoardSize.width - 0.5), D * (BoardSize.height - 0.5));
+                        cv::Mat croppedRef(result2, myROI);
+                        cv::resize(croppedRef, croppedRef , cv::Size(T_width, T_height));
+
+                        Mat2Mat(croppedRef , Template, 20 + T_height   ,               10);
                     }
-
-                    cv::Rect myROI(200-D*1.5, D*2.0 , D * (BoardSize.width - 0.5), D * (BoardSize.height - 0.5));
-                    cv::Mat croppedRef(result2, myROI);
-                    cv::resize(croppedRef, croppedRef , cv::Size(T_width, T_height));
-
-                    Mat2Mat(croppedRef , Template, 20 + T_height   ,               10);
-
                 }
 
             }

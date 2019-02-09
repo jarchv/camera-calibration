@@ -308,7 +308,7 @@ bool trancking(  std::vector<cv::Point>  tempCnts,
                 }
             }    
 
-            if (minc < 20)
+            if (minc < 10)
             {
                 nextCenters[i] = cv::Point(nextX, nextY);
             }     
@@ -699,11 +699,7 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
 void calcPointPosition(std::vector<cv::Point3f>& corners, cv::Size BoardSize)
 {
     corners.clear();
-    //float squareSize = 45.7;
     float squareSize = 45;
-    
-    //std::cout << "BoardSize.width  = " << BoardSize.width  << std::endl;
-    //std::cout << "BoardSize.height = " << BoardSize.height << std::endl;
     
     for (int i = 0; i < BoardSize.height; i++)
     {
@@ -727,16 +723,13 @@ bool Calibration(cv::Size imgSize,
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
-    cameraMatrix.at<double>(0,0) = 1.0;
+    cameraMatrix.at<double>(0,0) = 4.0/3.0;
     distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
 
     std::vector<std::vector<cv::Point3f>> objectPoints(1);
 
     calcPointPosition(objectPoints[0], BoardSize);
     objectPoints.resize(imagePoints.size(),objectPoints[0]);
-
-    //cv::InputArrayOfArrays objectPoints_ = (cv::InputArrayOfArrays)objectPoints;
-    //cv::InputArrayOfArrays imagePoints_  = (cv::InputArrayOfArrays)imagePoints;
 
     newObjectPoints = objectPoints[0];
 
