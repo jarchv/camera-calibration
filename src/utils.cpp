@@ -4,6 +4,9 @@
 #include <opencv2/calib3d/calib3d.hpp>
 
 #define PI 3.14159265
+
+int ITERATIONS = 15;
+
 void selfCapture(cv::Mat& src, 
                 std::vector<cv::Point> SortedPoints,
                 cv::Mat toModel, 
@@ -78,7 +81,7 @@ void selfCapture(cv::Mat& src,
 
             bool NEW_ANGLE = true;
 
-            if(tvec.at<double>(2,0) > 0.8)
+            if(tvec.at<double>(2,0) > 0.5 && abs(theta) > 25)
             {
                 if (ThetaArray.size() == 0)
                 {
@@ -90,7 +93,7 @@ void selfCapture(cv::Mat& src,
                 {
                     for(int it=0; it < ThetaArray.size(); it++)
                     {
-                        if (abs(ThetaArray[it] - theta) < 15 && abs(PhiXArray[it] - phiX) < 10 && abs(PhiYArray[it] - phiY) < 10)
+                        if (abs(ThetaArray[it] - theta) < 25 && abs(PhiXArray[it] - phiX) < 15 && abs(PhiYArray[it] - phiY) < 15)
                         {
                             NEW_ANGLE = false;
                             break;
@@ -139,20 +142,6 @@ void selfCapture(cv::Mat& src,
             std::cout << "==================" << std::endl;
             */
         }
-        /*
-        if (NEW_ANGLE == true)
-        {
-            std::vector<cv::Point2f> pointBuf(BoardSize.width * BoardSize.height);
-            for (int i = 0; i < SortedPoints.size(); i++)
-            {
-                pointBuf[i] = cv::Point2f(SortedPoints[i].x, SortedPoints[i].y);          
-            }
-
-            imagePoints.push_back(pointBuf);
-            std::cout << "Capturing image | current size = " << imagePoints.size() << std::endl;
-            imgToCalib.push_back(toModel);  
-        }
-        */
     }
 }
 void CreateObject3D(cv::Mat& view, std::vector<cv::Point> ObjectPointsProjected2Image)
@@ -690,24 +679,26 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
                          cv::Mat& cameraMatrix , cv::Mat& distCoeffs,
                          std::vector<cv::Mat>& rvecs, std::vector<cv::Mat>& tvecs,
                          cv::Size BoardSize,
-                         double& getAvr)
+                         double& getAvr,
+                         int itrNumber)
 {
     cv::Mat dst;
-    float BIAS = 200;
+    float BIAS = 200.0;
 
     std::vector<std::vector<cv::Point3f>> NewObjectPointsModel(imagePoints.size());
     std::vector<std::vector<cv::Point2f>> imagePointsReProyected(imagePoints.size());
 
     cv::Mat temp;
-    int D = 45;
+    float D = 45.0;
     for(int i = 0; i < imagePoints.size(); i++)
     {
-        temp = imgsToCalib[i].clone();
-  
+        dst  = imgsToCalib[i].clone();
+        temp = dst.clone();
+
         std::vector<cv::Point2f> ObjectPointsModel2D;
         for(int j = 0; j < objectPoints.size(); j++)
         {
-            ObjectPointsModel2D.push_back(cv::Point2f(objectPoints[j].x + BIAS, D * (BoardSize.height - 1) -  objectPoints[j].y + BIAS/2));
+            ObjectPointsModel2D.push_back(cv::Point2f(objectPoints[j].x + BIAS, D * (BoardSize.height - 1) - objectPoints[j].y + BIAS/2));
         }
 
         std::vector<cv::Point2f> imagePointsModel2D;
@@ -725,11 +716,11 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
             cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
             continue;
         }
-        cv::undistort(temp, imgsToCalib[i], cameraMatrix, distCoeffs);
-        warpPerspective(imgsToCalib[i], dst, M, imgsToCalib[i].size());
-        //cv::flip(dst,dst,0);
-        
-        
+
+        cv::undistort(temp, dst, cameraMatrix, distCoeffs);
+
+        warpPerspective(temp, dst, M, dst.size());
+        //cv::imshow("dst",dst);        
 
         std::vector<cv::Point> SortedPoints2;
         cv::Mat gray2;
@@ -739,55 +730,67 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
         
         int c = 0;
 
-        cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
+        cv::Rect myROI(BIAS - D * 0.5, BIAS/2 - D*0.5 , D * (BoardSize.width), D * (BoardSize.height));
+        cv::Mat croppedRef(dst, myROI);
+        
+        //cv::imshow("croppedRef",croppedRef);  
+        cv::cvtColor(croppedRef, gray2, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
 
-        cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
-
-        //cv::Rect myROI(200 - D * 1.3, D*2.5 , D * (BoardSize.width + 1.5), D * (BoardSize.height + 0.5));
-        cv::Rect myROI(BIAS - D * 1.0, D*1.5 , D * (BoardSize.width + 1.2), D * (BoardSize.height + 0.5));
-        cv::Mat croppedRef(result2, myROI);
+        cv::Mat result2 = findCenters(croppedRef, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.08);
 
 
         if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
         {
             drawLines(result2, SortedPoints2);
             std::vector<cv::Point3f> FimgPoint; 
+
+            int Xl = (int)SortedPoints2[0].x;
+            int Yl = (int)SortedPoints2[15].y;
+            
+            //cv::Rect myROI(Xl - D * 0.5, Yl - D*0.5 , D * (BoardSize.width), D * (BoardSize.height));
+            //cv::Mat croppedRef(result2, myROI);
             for(int j = 0; j < SortedPoints2.size(); j++)
             {
-                FimgPoint.push_back(cv::Point3f(SortedPoints2[j].x - BIAS , D * (BoardSize.height - 1) - (SortedPoints2[j].y - BIAS/2), 0.0));
+                FimgPoint.push_back(cv::Point3f(SortedPoints2[j].x - D*0.5 , D * (BoardSize.height - 1) - (SortedPoints2[j].y - D*0.5), 0.0));
             }
-            //NewObjectPointsModel.push_back(FimgPoint);
             NewObjectPointsModel[i] = FimgPoint;
+            //cv::flip(croppedRef,croppedRef,0);
+            cv::imshow("crop", result2);        
+            cv::waitKey(30); 
         }
         else{
-            //NewObjectPointsModel.push_back(objectPoints);
-            NewObjectPointsModel[i] = objectPoints;
+            std::vector<cv::Point3f> FimgPoint; 
+            for(int j = 0; j < objectPoints.size(); j++)
+            {
+                FimgPoint.push_back(cv::Point3f(objectPoints[j].x, objectPoints[j].y, 0.0));
+            }
+            NewObjectPointsModel[i] = FimgPoint;
+            cv::imshow("crop", result2);        
+            cv::waitKey(30); 
         }
-
-        //std::cout << NewObjectPointsModel[i] << std::endl; 
-        //cv::imshow("front-to-parallel",dst);
-        //cv::imshow("result2", result2);
-        cv::imshow("crop", croppedRef);        
-        cv::waitKey(30);    
         cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
-        /*
-        std::cout << "======>" << std::endl;
-        std::cout << imagePointsReProyected[i] << std::endl; 
-        std::cout << "======" << std::endl;
-        std::cout << imagePoints[i] << std::endl; 
-        std::cout << "<======" << std::endl;
-        */
     }
     cv::destroyAllWindows();
 
     for (int i = 0; i < imagePointsReProyected.size(); i++)
     {
         //std::cout << NewObjectPointsModel[i] << std::endl;
+        //float a       = 9.0/8.0;
+        //float alpha   = 0.951.068/float(itrNumber+1);
+        //if (alpha >= 1)
+        //    alpha = 0.9999;
+
+        //alpha = 0.99;
+        //float alpha   = 9.0 / (9.0 + exp(-(float)itrNumber/(float(ITERATIONS))));
+        float alpha   = 0.95;
+        float n_alpha = 1.0 - alpha;
+        
+        //std::cout << "alpha : " << alpha << std::endl;
         for (int j = 0; j < imagePointsReProyected[i].size(); j++)
         {
-            imagePoints[i][j].x = imagePoints[i][j].x * 0.9 + imagePointsReProyected[i][j].x*0.1;
-            imagePoints[i][j].y = imagePoints[i][j].y * 0.9 + imagePointsReProyected[i][j].y*0.1;
+            imagePoints[i][j].x = imagePoints[i][j].x * alpha + imagePointsReProyected[i][j].x*n_alpha;
+            imagePoints[i][j].y = imagePoints[i][j].y * alpha + imagePointsReProyected[i][j].y*n_alpha;
 
             imagePointsReProyected[i][j].x = imagePoints[i][j].x;
             imagePointsReProyected[i][j].y = imagePoints[i][j].y;
@@ -852,7 +855,7 @@ bool Calibration(cv::Size imgSize,
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
-    cameraMatrix.at<double>(0,0) = 4.0/3.0;
+    cameraMatrix.at<double>(0,0) = 3.0/4.0;
     distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
 
     std::vector<std::vector<cv::Point3f>> objectPoints(1);
@@ -925,7 +928,7 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             newObjectPoints);
 
     
-    for (int i = 0; i < 20 ; i ++)
+    for (int itr = 0; itr < ITERATIONS ; itr ++)
     {
         IterativeRefinement(imgsToCalib,
                             newObjectPoints,
@@ -935,7 +938,8 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             rvecs,
                             tvecs,
                             BoardSize,
-                            avr );  
+                            avr ,
+                            itr);  
     }
      
     return res;

@@ -61,9 +61,9 @@ int main(int argc, char** argv)
     int COLS = strtol (argv[2], NULL,10);
     int ROWS = strtol (argv[3], NULL,10);
 
-    //cv::VideoCapture cap("../files/"+filename);
+    cv::VideoCapture cap("../files/"+filename);
     cv::Size BoardSize(COLS,ROWS);
-    cv::VideoCapture cap(0);
+    //cv::VideoCapture cap(0);
 
     bool newF = true;
 
@@ -102,7 +102,7 @@ int main(int argc, char** argv)
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray, gray, cv::Size(5,5), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.08);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.05);
         
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
@@ -333,7 +333,7 @@ int main(int argc, char** argv)
                     cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
                     cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
 
-                    cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
+                    cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.15);
 
                     if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
                     {
