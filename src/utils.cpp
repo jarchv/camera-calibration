@@ -673,7 +673,7 @@ static double computeReprojectionErrors( const std::vector<std::vector<cv::Point
 }
 
 
-void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
+float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
                          std::vector<cv::Point3f> objectPoints,
                          std::vector<std::vector<cv::Point2f>>& imagePoints,
                          cv::Mat& cameraMatrix , cv::Mat& distCoeffs,
@@ -825,6 +825,7 @@ void IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
     //                                         rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
     //std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
     getAvr = rms;
+    return rms;
 }
 
 
@@ -927,10 +928,11 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             BoardSize,
                             newObjectPoints);
 
-    
+    float prevError = 1000.0;
+    float nextError;
     for (int itr = 0; itr < ITERATIONS ; itr ++)
     {
-        IterativeRefinement(imgsToCalib,
+        nextError = IterativeRefinement(imgsToCalib,
                             newObjectPoints,
                             imagePoints,
                             cameraMatrix ,
@@ -940,6 +942,16 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             BoardSize,
                             avr ,
                             itr);  
+
+        if (nextError > prevError)
+        {
+            break;
+        }
+        else
+        {
+            prevError = nextError;
+        }
+        
     }
      
     return res;
