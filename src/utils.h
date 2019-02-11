@@ -10,6 +10,20 @@
 #include <unistd.h>
 #include <iostream>
 
+void selfCapture(cv::Mat& src, 
+                std::vector<cv::Point> SortedPoints,
+                cv::Mat toModel, 
+                std::vector<cv::Mat>& imgToCalib, 
+                std::vector<std::vector<cv::Point2f>>& imagePoints,
+                std::vector<cv::Point3f> PatternPointsPositions,
+                cv::Size BoardSize,
+                std::vector<double>& ThetaArray,
+                std::vector<double>& PhiXArray,
+                std::vector<double>& PhiYArray,
+                bool FORCE);
+
+void CreateObject3D(cv::Mat& view, std::vector<cv::Point> ObjectPointsProjected2Image);
+
 void drawLines(cv::Mat& img, std::vector<cv::Point> SortedPoints);
 bool isIncluded(std::vector<cv::Point> X,
                 cv::Point Pt);
