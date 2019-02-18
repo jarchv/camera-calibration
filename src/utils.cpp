@@ -820,24 +820,19 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
 
         //alpha = 0.99;
         //float alpha   = 9.0 / (9.0 + exp(-(float)itrNumber/(float(ITERATIONS))));
+        
         float alpha   = 0.7;
         float n_alpha = 1.0 - alpha;
         
-        //std::cout << "alpha : " << alpha << std::endl;
         for (int j = 0; j < imagePointsReProyected[i].size(); j++)
         {
-            //std::cout << "Re : " << (float)(int)imagePointsReProyected[i][j].x << " -> (+) " <<  imagePoints[i][j].x << std::endl;
-            //std::cout << "Re : " << imagePointsReProyected[i][j].y << " -> (+) " <<  imagePoints[i][j].y << std::endl;
             imagePoints[i][j].x = imagePoints[i][j].x * alpha + imagePointsReProyected[i][j].x*n_alpha;
             imagePoints[i][j].y = imagePoints[i][j].y * alpha + imagePointsReProyected[i][j].y*n_alpha;
 
             imagePointsReProyected[i][j].x = imagePoints[i][j].x;
             imagePointsReProyected[i][j].y = imagePoints[i][j].y;
-
-            //imagePointsReProyected[i][j].x = (imagePoints[i][j].x)*0.7 + ((float)(int)imagePointsReProyected[i][j].x)*0.3;
-            //imagePointsReProyected[i][j].y = (imagePoints[i][j].y)*0.9 + ((float)(int)imagePointsReProyected[i][j].y)*0.1;
-        //    std::cout << "[i = " << i << "] = " << imagePointsReProyected[i][j] << "  <> "<< imagePoints[i][j] << std::endl;
         }
+
     }
     
     std::vector<float> projectErrors;

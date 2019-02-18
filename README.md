@@ -45,11 +45,11 @@ make
 
 2. Reconstruccion de un objecto 3D:
 
-    ![alt text](ringspattern.gif)
+    ![alt text](rings2.gif)
 
     Youtube Vide:
 
-    [![3D Camera Calibration](https://img.youtube.com/vi/pm2XkwcAI60/0.jpg)](https://www.youtube.com/watch?v=pm2XkwcAI60&feature=youtu.be)
+    [![3D Camera Calibration](https://img.youtube.com/vi/zYjJ2QNdNXc/0.jpg)](https://www.youtube.com/watch?v=zYjJ2QNdNXc)
 
 3. Observaciones:
 
