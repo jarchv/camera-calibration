@@ -49,7 +49,7 @@ make
 
     Youtube Vide:
 
-    [![3D reconstruction Rings pattern](https://www.youtube.com/watch?v=pm2XkwcAI60&feature=youtu.be)
+    [![3D Camera Calibration](https://img.youtube.com/vi/pm2XkwcAI60/0.jpg)](https://www.youtube.com/watch?v=pm2XkwcAI60&feature=youtu.be)
 
 3. Observaciones:
 
