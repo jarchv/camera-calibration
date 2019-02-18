@@ -16,7 +16,7 @@ int RECONSTRUCTION = 2;
 int mode       = 0;
 
 float BIAS = 200;
-int   IMAGES_TO_CALIBRATE = 14;
+int   IMAGES_TO_CALIBRATE = 8;
 
 std::string VISUALIZE_PATH = "visualize/";
 std::string TXT_PATH       = "txt/";

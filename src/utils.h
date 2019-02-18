@@ -20,6 +20,7 @@ void selfCapture(cv::Mat& src,
                 std::vector<double>& ThetaArray,
                 std::vector<double>& PhiXArray,
                 std::vector<double>& PhiYArray,
+                std::vector<double>& ZArray,
                 bool FORCE);
 
 void CreateObject3D(cv::Mat& view, std::vector<cv::Point> ObjectPointsProjected2Image);

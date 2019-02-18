@@ -5,7 +5,7 @@
 
 #define PI 3.14159265
 
-int ITERATIONS = 15;
+int ITERATIONS = 100;
 
 void selfCapture(cv::Mat& src, 
                 std::vector<cv::Point> SortedPoints,
@@ -17,6 +17,7 @@ void selfCapture(cv::Mat& src,
                 std::vector<double>& ThetaArray,
                 std::vector<double>& PhiXArray,
                 std::vector<double>& PhiYArray,
+                std::vector<double>& ZArray,
                 bool FORCE)
 {
     float BIAS = 200.0;
@@ -24,123 +25,150 @@ void selfCapture(cv::Mat& src,
     //std::cout << "thetas Size : " << ThetaArray.size() << std::endl;
     if (SortedPoints.size() == (BoardSize.width * BoardSize.height))
     {
-        std::vector<cv::Point2f> ObjectPointsModel2D;
-        for(int i = 0; i < PatternPointsPositions.size(); i++)
+        if (FORCE == true)
         {
-            ObjectPointsModel2D.push_back(cv::Point2f(PatternPointsPositions[i].x + BIAS, PatternPointsPositions[i].y + BIAS/2.0));
-        }
-
-        std::vector<cv::Point2f> imagePointsModel2D;
-        for(int i = 0; i < SortedPoints.size(); i++)
-        {
-            imagePointsModel2D.push_back(cv::Point2f(SortedPoints[i].x, SortedPoints[i].y));
-        }
-
-        cv::Mat H = cv::findHomography(imagePointsModel2D, ObjectPointsModel2D,CV_RANSAC);
-        if (H.cols == 3 && H.rows == 3)
-        {
-
-            double norm = sqrt(H.at<double>(0,0)*H.at<double>(0,0) +
-                        H.at<double>(1,0)*H.at<double>(1,0) +
-                        H.at<double>(2,0)*H.at<double>(2,0));
-            H /= norm;
-            cv::Mat c1  = H.col(0);
-            cv::Mat c2  = H.col(1);
-            cv::Mat c3 = c1.cross(c2);
-            cv::Mat tvec = H.col(2);
-            cv::Mat R(3, 3, CV_64F);
-
-            double modZ_dir = 0.0;
-            for (int ir = 0; ir < 3; ir++)
+            std::vector<cv::Point2f> pointBuf(BoardSize.width * BoardSize.height);
+            for (int i = 0; i < SortedPoints.size(); i++)
             {
-                R.at<double>(ir,0) = c1.at<double>(ir,0);
-                R.at<double>(ir,1) = c2.at<double>(ir,0);
-                R.at<double>(ir,2) = c3.at<double>(ir,0);
-
-                modZ_dir += (c3.at<double>(ir,0) * c3.at<double>(ir,0));
+                pointBuf[i] = cv::Point2f(SortedPoints[i].x, SortedPoints[i].y);          
             }
-                        
-            double theta = atan (R.at<double>(1,0)) * 180.0 / PI;
-            
-            double cos1 = 500.0*R.at<double>(0,2)/sqrt(modZ_dir);
-            double cos2 = 500.0*R.at<double>(1,2)/sqrt(modZ_dir);
-            
-            if (cos1 < -1)
-                cos1 = -1;
-            else if (cos1 > 1)
-                cos1 = 1;
 
-            if (cos2 < -1)
-                cos2 = -1;
-            else if (cos2 > 1)
-                cos2 = 1;
+            imagePoints.push_back(pointBuf);
+            std::cout << "Capturing image | current size = " << imagePoints.size() << std::endl;
+            imgToCalib.push_back(toModel); 
+        }
 
-
-            double phiX  = acos (cos1) * 180.0 / PI;
-            double phiY  = acos (cos2) * 180.0 / PI;
-
-            bool NEW_ANGLE = true;
-
-            if(tvec.at<double>(2,0) > 0.5 && abs(theta) > 25)
+        else {
+            std::vector<cv::Point2f> ObjectPointsModel2D;
+            for(int i = 0; i < PatternPointsPositions.size(); i++)
             {
-                if (ThetaArray.size() == 0)
-                {
-                    ThetaArray.push_back(theta);
-                    PhiXArray.push_back(phiX);
-                    PhiYArray.push_back(phiY);
-                }   
-                else
-                {
-                    for(int it=0; it < ThetaArray.size(); it++)
-                    {
-                        if (abs(ThetaArray[it] - theta) < 25 && abs(PhiXArray[it] - phiX) < 15 && abs(PhiYArray[it] - phiY) < 15)
-                        {
-                            NEW_ANGLE = false;
-                            break;
-                        }
-                    }
+                ObjectPointsModel2D.push_back(cv::Point2f(PatternPointsPositions[i].x + BIAS, PatternPointsPositions[i].y + BIAS/2.0));
+            }
 
-                    if (NEW_ANGLE == true)
+            std::vector<cv::Point2f> imagePointsModel2D;
+            for(int i = 0; i < SortedPoints.size(); i++)
+            {
+                imagePointsModel2D.push_back(cv::Point2f(SortedPoints[i].x, SortedPoints[i].y));
+            }
+
+            cv::Mat H = cv::findHomography(imagePointsModel2D, ObjectPointsModel2D,CV_RANSAC);
+            if (H.cols == 3 && H.rows == 3)
+            {
+
+                double norm = sqrt( H.at<double>(0,0)*H.at<double>(0,0) +
+                                    H.at<double>(1,0)*H.at<double>(1,0) +
+                                    H.at<double>(2,0)*H.at<double>(2,0));
+                H /= norm;
+                cv::Mat c1   = H.col(0);
+                cv::Mat c2   = H.col(1);
+                cv::Mat c3   = c1.cross(c2);
+                cv::Mat tvec = H.col(2);
+                cv::Mat R(3, 3, CV_64F);
+
+                double modZ_dir = 0.0;
+                for (int ir = 0; ir < 3; ir++)
+                {
+                    R.at<double>(ir,0) = c1.at<double>(ir,0);
+                    R.at<double>(ir,1) = c2.at<double>(ir,0);
+                    R.at<double>(ir,2) = c3.at<double>(ir,0);
+
+                    modZ_dir += (c3.at<double>(ir,0) * c3.at<double>(ir,0));
+                }
+                            
+                double theta = atan (R.at<double>(1,0)) * 180.0 / PI;
+                
+                double cos1 = 500.0*R.at<double>(0,2)/sqrt(modZ_dir);
+                double cos2 = 500.0*R.at<double>(1,2)/sqrt(modZ_dir);
+                
+                if (cos1 < -1)
+                    cos1 = -1;
+                else if (cos1 > 1)
+                    cos1 = 1;
+
+                if (cos2 < -1)
+                    cos2 = -1;
+                else if (cos2 > 1)
+                    cos2 = 1;
+
+
+                double phiX  = acos (cos1) * 180.0 / PI;
+                double phiY  = acos (cos2) * 180.0 / PI;
+                double depth = tvec.at<double>(2,0);
+                bool NEW_ANGLE = true;
+
+                //std::cout << "phiX :" << phiX << std::endl;
+                //std::cout << "phiY :" << phiY << std::endl;
+                //std::cout << "z : " << tvec.at<double>(2,0) << std::endl;
+                if(abs(depth) > 1.0 && abs(theta) > 5 && abs(90 - phiX) > 5 && abs(90 - phiY) > 5)
+                {
+                    if (ThetaArray.size() == 0)
                     {
                         ThetaArray.push_back(theta);
                         PhiXArray.push_back(phiX);
                         PhiYArray.push_back(phiY);
+                        ZArray.push_back(depth);
+                    }   
+                    else
+                    {
+                        for(int it=0; it < ThetaArray.size(); it++)
+                        {
+                            if (abs(ZArray[it]-depth) < 1 && abs(ThetaArray[it] - theta) < 15 && abs(PhiXArray[it] - phiX) < 15 && abs(PhiYArray[it] - phiY) < 15)
+                            {
+                                NEW_ANGLE = false;
+                                break;
+                            }
+
+                            if(abs(depth) < 1.0 || abs(theta) < 5 || abs(90 - phiX) < 5 || abs(90 - phiY) < 5)
+                            {
+                                NEW_ANGLE = false;
+                                break;                            
+                            }
+                        }
+
+                        if (NEW_ANGLE == true)
+                        {
+                            ThetaArray.push_back(theta);
+                            PhiXArray.push_back(phiX);
+                            PhiYArray.push_back(phiY);
+                            ZArray.push_back(depth);
+                        }
+                    }
+                    
+                }
+
+                else
+                {
+                    NEW_ANGLE = false;
+                }
+
+                if (NEW_ANGLE == true)
+                {
+                    std::vector<cv::Point2f> pointBuf(BoardSize.width * BoardSize.height);
+                    for (int i = 0; i < SortedPoints.size(); i++)
+                    {
+                        pointBuf[i] = cv::Point2f(SortedPoints[i].x, SortedPoints[i].y);          
+                    }
+
+                    imagePoints.push_back(pointBuf);
+                    std::cout << "Capturing image | current size = " << imagePoints.size() << std::endl;
+                    imgToCalib.push_back(toModel); 
+
+                    if (NEW_ANGLE == false)
+                    {
+                        ThetaArray.push_back(theta);
+                        PhiXArray.push_back(phiX);
+                        PhiYArray.push_back(phiY);    
+                        ZArray.push_back(depth);                
                     }
                 }
-                
+                /*
+                std::cout << "==================" << std::endl;
+                std::cout << R.at<double>(0,0) << " " << R.at<double>(0,1) << " " <<R.at<double>(0,2) << std::endl;
+                std::cout << R.at<double>(1,0) << " " << R.at<double>(1,1) << " " <<R.at<double>(1,2) << std::endl;
+                std::cout << R.at<double>(2,0) << " " << R.at<double>(2,1) << " " <<R.at<double>(2,2) << std::endl;
+                std::cout << "==================" << std::endl;
+                */
             }
-
-            else
-            {
-                NEW_ANGLE = false;
-            }
-
-            if (NEW_ANGLE == true || FORCE == true)
-            {
-                std::vector<cv::Point2f> pointBuf(BoardSize.width * BoardSize.height);
-                for (int i = 0; i < SortedPoints.size(); i++)
-                {
-                    pointBuf[i] = cv::Point2f(SortedPoints[i].x, SortedPoints[i].y);          
-                }
-
-                imagePoints.push_back(pointBuf);
-                std::cout << "Capturing image | current size = " << imagePoints.size() << std::endl;
-                imgToCalib.push_back(toModel); 
-
-                if (FORCE == true && NEW_ANGLE == false)
-                {
-                    ThetaArray.push_back(theta);
-                    PhiXArray.push_back(phiX);
-                    PhiYArray.push_back(phiY);                    
-                }
-            }
-            /*
-            std::cout << "==================" << std::endl;
-            std::cout << R.at<double>(0,0) << " " << R.at<double>(0,1) << " " <<R.at<double>(0,2) << std::endl;
-            std::cout << R.at<double>(1,0) << " " << R.at<double>(1,1) << " " <<R.at<double>(1,2) << std::endl;
-            std::cout << R.at<double>(2,0) << " " << R.at<double>(2,1) << " " <<R.at<double>(2,2) << std::endl;
-            std::cout << "==================" << std::endl;
-            */
         }
     }
 }
@@ -752,7 +780,7 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
             //cv::Mat croppedRef(result2, myROI);
             for(int j = 0; j < SortedPoints2.size(); j++)
             {
-                FimgPoint.push_back(cv::Point3f(SortedPoints2[j].x - D*0.5 , D * (BoardSize.height - 1) - (SortedPoints2[j].y - D*0.5), 0.0));
+                FimgPoint.push_back(cv::Point3f((float)SortedPoints2[j].x - D*0.5 , D * (BoardSize.height - 1) - ((float)SortedPoints2[j].y - D*0.5), 0.0));
             }
             NewObjectPointsModel[i] = FimgPoint;
             //cv::flip(croppedRef,croppedRef,0);
@@ -763,7 +791,7 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
             std::vector<cv::Point3f> FimgPoint; 
             for(int j = 0; j < objectPoints.size(); j++)
             {
-                FimgPoint.push_back(cv::Point3f(objectPoints[j].x, objectPoints[j].y, 0.0));
+                FimgPoint.push_back(cv::Point3f((float)objectPoints[j].x, (float)objectPoints[j].y, 0.0));
             }
             NewObjectPointsModel[i] = FimgPoint;
             cv::imshow("crop", result2);        
@@ -789,13 +817,13 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
         //std::cout << "alpha : " << alpha << std::endl;
         for (int j = 0; j < imagePointsReProyected[i].size(); j++)
         {
-            imagePoints[i][j].x = imagePoints[i][j].x * alpha + imagePointsReProyected[i][j].x*n_alpha;
-            imagePoints[i][j].y = imagePoints[i][j].y * alpha + imagePointsReProyected[i][j].y*n_alpha;
+            //imagePoints[i][j].x = imagePoints[i][j].x * alpha + imagePointsReProyected[i][j].x*n_alpha;
+            //imagePoints[i][j].y = imagePoints[i][j].y * alpha + imagePointsReProyected[i][j].y*n_alpha;
 
-            imagePointsReProyected[i][j].x = imagePoints[i][j].x;
-            imagePointsReProyected[i][j].y = imagePoints[i][j].y;
-            //imagePointsReProyected[i][j].x = (imagePoints[i][j].x)*0.8 + (imagePointsReProyected[i][j].x)*0.2;
-            //imagePointsReProyected[i][j].y = (imagePoints[i][j].y)*0.8 + (imagePointsReProyected[i][j].y)*0.2;
+            //imagePointsReProyected[i][j].x = imagePoints[i][j].x;
+            //imagePointsReProyected[i][j].y = imagePoints[i][j].y;
+            imagePointsReProyected[i][j].x = (imagePoints[i][j].x)*0.8 + (imagePointsReProyected[i][j].x)*0.2;
+            imagePointsReProyected[i][j].y = (imagePoints[i][j].y)*0.8 + (imagePointsReProyected[i][j].y)*0.2;
         //    std::cout << "[i = " << i << "] = " << imagePointsReProyected[i][j] << "  <> "<< imagePoints[i][j] << std::endl;
         }
     }
@@ -810,6 +838,9 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
     calcPointPosition(objectPointsNew[0], BoardSize);
     objectPointsNew.resize(imagePoints.size(),objectPointsNew[0]);
 
+    //int flag = 0;
+    //int flag = CV_CALIB_FIX_K4;
+    //flag    |= CV_CALIB_FIX_K5;    
     float rms = calibrateCamera(objectPointsNew, 
                                             imagePointsReProyected, 
                                             temp.size(), 
@@ -817,7 +848,7 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
                                             distCoeffs, 
                                             rvecs, 
                                             tvecs, 
-                                            0);
+                                            CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5);
 
     std::cout << "Re-projection error reported by calibrateCamera =  "<< rms << std::endl;
 
@@ -838,7 +869,7 @@ void calcPointPosition(std::vector<cv::Point3f>& corners, cv::Size BoardSize)
     {
         for (int j = 0; j < BoardSize.width; j++)
         {
-            corners.push_back(cv::Point3f(float( j*squareSize ), float( i*squareSize ), 0));
+            corners.push_back(cv::Point3f(float( j*squareSize ), float( i*squareSize ), 0.0));
         }
     }
 }
@@ -866,6 +897,10 @@ bool Calibration(cv::Size imgSize,
 
     newObjectPoints = objectPoints[0];
 
+    //int flag = 0;
+    //int flag = CV_CALIB_FIX_K4;
+    //flag    |= CV_CALIB_FIX_K5; 
+
     float rms = calibrateCamera(objectPoints, 
                                     imagePoints, 
                                     imgSize, 
@@ -873,7 +908,7 @@ bool Calibration(cv::Size imgSize,
                                     distCoeffs, 
                                     rvecs, 
                                     tvecs, 
-                                    CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+                                    CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5);
 
     avr = rms;
 
@@ -881,8 +916,8 @@ bool Calibration(cv::Size imgSize,
 
     bool ok = cv::checkRange(cameraMatrix) && cv::checkRange(distCoeffs);
     
-    totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
-                                             rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
+    //totalAvgErr = computeReprojectionErrors(objectPoints, imagePoints,
+    //                                         rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
     
     //std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
     //std::cout << "\nCalibration Matrix:  \n"<<std::endl;
@@ -914,7 +949,7 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
     std::vector<float> projectErrors;
     
 
-    double totalAvgErr = 0;
+    double totalAvgErr = 0; 
 
     bool res = Calibration( imgSize,
                             cameraMatrix,
@@ -945,7 +980,8 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
 
         if (nextError > prevError)
         {
-            break;
+            std::cout << "break" << std::endl;
+            //break;
         }
         else
         {

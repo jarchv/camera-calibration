@@ -27,7 +27,7 @@ cv::Size imgSize;
 std::vector<double> ThetaArray;
 std::vector<double> PhiXArray;
 std::vector<double> PhiYArray;
-
+std::vector<double> ZArray;
 //float D = 45.7;
 float D = 45;
 
@@ -61,9 +61,9 @@ int main(int argc, char** argv)
     int COLS = strtol (argv[2], NULL,10);
     int ROWS = strtol (argv[3], NULL,10);
 
-    cv::VideoCapture cap("../files/"+filename);
+    //cv::VideoCapture cap("../files/"+filename);
     cv::Size BoardSize(COLS,ROWS);
-    //cv::VideoCapture cap(0);
+    cv::VideoCapture cap(0);
 
     bool newF = true;
 
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
         Template = cv::Mat(T_height*2 + 30, T_width*3 + 40, CV_8UC3, cv::Scalar(45,45,45));
         
         cap >> frame;
-
+        
         cv::Mat toModel = frame.clone();
         imgSize = frame.size();
         //usleep(10000);
@@ -102,7 +102,7 @@ int main(int argc, char** argv)
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray, gray, cv::Size(5,5), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.05);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.15);
         
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
@@ -171,16 +171,16 @@ int main(int argc, char** argv)
 
         
         
-        if (mode == CAPTURING)
-            selfCapture(result,SortedPoints, toModel, imgToCalib, imagePoints, PatternPointsPositions, BoardSize,ThetaArray,PhiXArray,PhiYArray,false);
+        //if (mode == CAPTURING)
+        //    selfCapture(result,SortedPoints, toModel, imgToCalib, imagePoints, PatternPointsPositions, BoardSize,ThetaArray,PhiXArray,PhiYArray,ZArray,false);
         
-        if (mode != CALIBRATED)
+        if (mode == CAPTURING)
         {
             cv::ellipse(result, cv::Point((int)(result.cols-40),
                                 (int)(result.rows-40)), 
                                 cv::Size(15,15), 0.0, 0.0, 
-                                ThetaArray.size()*360.0/IMAGES_TO_CALIBRATE, 
-                                cv::Scalar(10,10,250), 2, 8);
+                                imgToCalib.size()*360.0/IMAGES_TO_CALIBRATE, 
+                                cv::Scalar(10,10,250), 6, 8);
         }
 
         Mat2Mat(result         , Template, 10              ,     T_width + 20);
@@ -190,7 +190,7 @@ int main(int argc, char** argv)
         else if ( k == 'c' || k == 'C')
         {
             if (mode == CAPTURING)
-                selfCapture(result,SortedPoints, toModel, imgToCalib, imagePoints, PatternPointsPositions, BoardSize,ThetaArray,PhiXArray,PhiYArray,true);
+                selfCapture(result,SortedPoints, toModel, imgToCalib, imagePoints, PatternPointsPositions, BoardSize,ThetaArray,PhiXArray,PhiYArray,ZArray,true);
         }
 
         else if ( k == 'r' || k == 'R')
@@ -216,7 +216,7 @@ int main(int argc, char** argv)
             }
             mode = CALIBRATED;
             //std::cout << "\nDistCoeffs: " << distCoeffs << std::endl;
-            cap.set(CV_CAP_PROP_POS_FRAMES, 0);
+            //cap.set(CV_CAP_PROP_POS_FRAMES, 0);
         }
 
         if ( mode == CALIBRATED)
@@ -225,7 +225,8 @@ int main(int argc, char** argv)
             temp = view.clone();
 
             cv::undistort(temp, view, cameraMatrix, distCoeffs);
-
+            cv::resize(view       , view        , cv::Size(T_width, T_height));
+            Mat2Mat(view       , Template, 20 + T_height   ,     T_width*1 + 20);    
             
             cv::putText(Template,"fx     : " + std::to_string(cameraMatrix.at<double>(0,0)), 
                                   cv::Point(T_width+40, T_height + 140),cv::  FONT_ITALIC,0.5,cv::Scalar(255,255,255),1);
@@ -288,10 +289,7 @@ int main(int argc, char** argv)
                     ObjectPointsProjected2Image.push_back(cv::Point((int)ObjectPointsProjected[i].x, (int)ObjectPointsProjected[i].y));
                 }
 
-                if (neg == false)
-                {
-                    CreateObject3D(view, ObjectPointsProjected2Image);                   
-                }
+
 
                 /*
                 ***********************
@@ -349,10 +347,14 @@ int main(int argc, char** argv)
                         Mat2Mat(croppedRef , Template, 20 + T_height   ,               10);
                     }
                 }
+                if (neg == false)
+                {
+                    CreateObject3D(temp, ObjectPointsProjected2Image);                   
+                }
 
             }
-            cv::resize(view       , view        , cv::Size(T_width, T_height));
-            Mat2Mat(view       , Template, 20 + T_height   ,     T_width*2 + 30);            
+            cv::resize(temp       , temp        , cv::Size(T_width, T_height));
+            Mat2Mat(temp       , Template, 20 + T_height   ,     T_width*2 + 30);            
 
         }
 
@@ -439,7 +441,7 @@ int main(int argc, char** argv)
         }
 
         cv::imshow("Template", Template);
-        //video.write(Template);
+        video.write(Template);
     }
 
     cap.release();
