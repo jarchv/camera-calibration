@@ -61,9 +61,19 @@ int main(int argc, char** argv)
     int COLS = strtol (argv[2], NULL,10);
     int ROWS = strtol (argv[3], NULL,10);
 
-    //cv::VideoCapture cap("../files/"+filename);
+    cv::VideoCapture cap;
+    if (filename == "-r")
+    {
+        int deviceID = 0; 
+        int apiID = cv::CAP_ANY; 
+        cap.open(deviceID + apiID);
+    }
+    else {
+        cap.open("../files/"+filename);
+    }
+    //
     cv::Size BoardSize(COLS,ROWS);
-    cv::VideoCapture cap(0);
+    //cv::VideoCapture cap(0);
 
     bool newF = true;
 
