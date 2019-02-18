@@ -102,7 +102,7 @@ int main(int argc, char** argv)
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(gray, gray, cv::Size(5,5), 0, 0);  
 
-        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.15);
+        result      = findCenters(frame, gray, bin, contours_draw, contours, countFrame, SortedPoints, BoardSize, 0.05);
         
         temp_time    = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
         time_avr    += temp_time;
@@ -331,7 +331,7 @@ int main(int argc, char** argv)
                     cv::cvtColor(dst, gray2, cv::COLOR_BGR2GRAY);
                     cv::GaussianBlur(gray2, gray2, cv::Size(5,5), 0, 0);  
 
-                    cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.15);
+                    cv::Mat result2 = findCenters(dst, gray2, bin2, contours_draw2, contours2, c, SortedPoints2, BoardSize, 0.05);
 
                     if (SortedPoints2.size() == (BoardSize.width * BoardSize.height))
                     {

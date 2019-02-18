@@ -5,7 +5,7 @@
 
 #define PI 3.14159265
 
-int ITERATIONS = 100;
+int ITERATIONS = 20;
 
 void selfCapture(cv::Mat& src, 
                 std::vector<cv::Point> SortedPoints,
@@ -740,7 +740,12 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
 
         if (M.cols != 3 || M.rows != 3)
         {
-            NewObjectPointsModel[i] = objectPoints;
+            std::cout << "M.cols != 3" << std::endl;
+            for (int jj = 0; jj < objectPoints.size(); jj++)
+            {
+                NewObjectPointsModel[i].push_back(objectPoints[jj]);
+            }
+            
             cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
             continue;
         }
@@ -780,8 +785,11 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
             //cv::Mat croppedRef(result2, myROI);
             for(int j = 0; j < SortedPoints2.size(); j++)
             {
+                //std::cout << "obj points (" << j << ") = " <<  (float)SortedPoints2[j].x - D*0.5 << ", " << D * (BoardSize.height - 1) - ((float)SortedPoints2[j].y - D*0.5) << std::endl;
                 FimgPoint.push_back(cv::Point3f((float)SortedPoints2[j].x - D*0.5 , D * (BoardSize.height - 1) - ((float)SortedPoints2[j].y - D*0.5), 0.0));
+
             }
+
             NewObjectPointsModel[i] = FimgPoint;
             //cv::flip(croppedRef,croppedRef,0);
             cv::imshow("crop", result2);        
@@ -793,14 +801,15 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
             {
                 FimgPoint.push_back(cv::Point3f((float)objectPoints[j].x, (float)objectPoints[j].y, 0.0));
             }
+            std::cout << "not found" << std::endl;
             NewObjectPointsModel[i] = FimgPoint;
-            cv::imshow("crop", result2);        
+            cv::imshow("crop-not found", result2);        
             cv::waitKey(30); 
         }
         cv::projectPoints(NewObjectPointsModel[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs, imagePointsReProyected[i]);
     }
     cv::destroyAllWindows();
-
+    //std::cout << "->" << std::endl;
     for (int i = 0; i < imagePointsReProyected.size(); i++)
     {
         //std::cout << NewObjectPointsModel[i] << std::endl;
@@ -811,19 +820,22 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
 
         //alpha = 0.99;
         //float alpha   = 9.0 / (9.0 + exp(-(float)itrNumber/(float(ITERATIONS))));
-        float alpha   = 0.95;
+        float alpha   = 0.7;
         float n_alpha = 1.0 - alpha;
         
         //std::cout << "alpha : " << alpha << std::endl;
         for (int j = 0; j < imagePointsReProyected[i].size(); j++)
         {
-            //imagePoints[i][j].x = imagePoints[i][j].x * alpha + imagePointsReProyected[i][j].x*n_alpha;
-            //imagePoints[i][j].y = imagePoints[i][j].y * alpha + imagePointsReProyected[i][j].y*n_alpha;
+            //std::cout << "Re : " << (float)(int)imagePointsReProyected[i][j].x << " -> (+) " <<  imagePoints[i][j].x << std::endl;
+            //std::cout << "Re : " << imagePointsReProyected[i][j].y << " -> (+) " <<  imagePoints[i][j].y << std::endl;
+            imagePoints[i][j].x = imagePoints[i][j].x * alpha + imagePointsReProyected[i][j].x*n_alpha;
+            imagePoints[i][j].y = imagePoints[i][j].y * alpha + imagePointsReProyected[i][j].y*n_alpha;
 
-            //imagePointsReProyected[i][j].x = imagePoints[i][j].x;
-            //imagePointsReProyected[i][j].y = imagePoints[i][j].y;
-            imagePointsReProyected[i][j].x = (imagePoints[i][j].x)*0.8 + (imagePointsReProyected[i][j].x)*0.2;
-            imagePointsReProyected[i][j].y = (imagePoints[i][j].y)*0.8 + (imagePointsReProyected[i][j].y)*0.2;
+            imagePointsReProyected[i][j].x = imagePoints[i][j].x;
+            imagePointsReProyected[i][j].y = imagePoints[i][j].y;
+
+            //imagePointsReProyected[i][j].x = (imagePoints[i][j].x)*0.7 + ((float)(int)imagePointsReProyected[i][j].x)*0.3;
+            //imagePointsReProyected[i][j].y = (imagePoints[i][j].y)*0.9 + ((float)(int)imagePointsReProyected[i][j].y)*0.1;
         //    std::cout << "[i = " << i << "] = " << imagePointsReProyected[i][j] << "  <> "<< imagePoints[i][j] << std::endl;
         }
     }
@@ -841,21 +853,23 @@ float IterativeRefinement(std::vector<cv::Mat> imgsToCalib,
     //int flag = 0;
     //int flag = CV_CALIB_FIX_K4;
     //flag    |= CV_CALIB_FIX_K5;    
-    float rms = calibrateCamera(objectPointsNew, 
+
+    //std::cout << "->" << std::endl;
+    float rms = calibrateCamera(NewObjectPointsModel, 
                                             imagePointsReProyected, 
                                             temp.size(), 
                                             cameraMatrix,
                                             distCoeffs, 
                                             rvecs, 
                                             tvecs, 
-                                            CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5);
+                                            0);
 
     std::cout << "Re-projection error reported by calibrateCamera =  "<< rms << std::endl;
 
     //totalAvgErr = computeReprojectionErrors(objectPointsNew, imagePointsReProyected,
     //                                         rvecs, tvecs, cameraMatrix, distCoeffs, projectErrors);
     //std::cout << "\nAvg_Reprojection_Error = " << totalAvgErr << std::endl;
-    getAvr = rms;
+    //getAvr = rms;
     return rms;
 }
 
@@ -887,7 +901,7 @@ bool Calibration(cv::Size imgSize,
 {
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
-    cameraMatrix.at<double>(0,0) = 3.0/4.0;
+    cameraMatrix.at<double>(0,0) = 1.0;
     distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
 
     std::vector<std::vector<cv::Point3f>> objectPoints(1);
@@ -963,7 +977,7 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             BoardSize,
                             newObjectPoints);
 
-    float prevError = 1000.0;
+    avr = 1000.0;
     float nextError;
     for (int itr = 0; itr < ITERATIONS ; itr ++)
     {
@@ -978,14 +992,14 @@ bool GetParams( std::vector<cv::Mat> imgsToCalib,
                             avr ,
                             itr);  
 
-        if (nextError > prevError)
+        if (nextError > avr)
         {
-            std::cout << "break" << std::endl;
-            //break;
+            //std::cout << "break" << std::endl;
+            break;
         }
         else
         {
-            prevError = nextError;
+            avr = nextError;
         }
         
     }
